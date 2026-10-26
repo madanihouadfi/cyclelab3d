@@ -10,7 +10,9 @@ import {
 } from '../src/physics';
 import {
   buildSceneAnimationParams,
+  COMPONENT_CAMERA_SHOTS,
   COMPONENT_POSITIONS_3D,
+  PIPE_SERVICE_COLORS,
   POWERTRAIN_SHAFT,
 } from '../src/scene/animationParams';
 
@@ -34,10 +36,11 @@ describe('M8 + M7 Upgrade: Full Self-Audit, Pure Physics & Animation Mapping Ver
     expect(enKeys).toEqual(frKeys);
   });
 
-  it('keeps src/physics free of 3D coordinates while src/scene/animationParams holds all 3D layout and animation mapping', () => {
+  it('defines 3D layout, showcase camera shots, and pipe service colors in src/scene/animationParams', () => {
     for (const meta of PLANT_COMPONENTS) {
-      expect('position3D' in meta).toBe(false);
       expect(COMPONENT_POSITIONS_3D[meta.id]).toHaveLength(3);
+      expect(COMPONENT_CAMERA_SHOTS[meta.id].position).toHaveLength(3);
+      expect(COMPONENT_CAMERA_SHOTS[meta.id].target).toHaveLength(3);
     }
 
     // Verify compressor, gasTurbine, steamTurbine, and generator share the single synchronous shaft Y and Z coordinates
@@ -45,6 +48,12 @@ describe('M8 + M7 Upgrade: Full Self-Audit, Pure Physics & Animation Mapping Ver
       expect(COMPONENT_POSITIONS_3D[id][1]).toBe(POWERTRAIN_SHAFT.y);
       expect(COMPONENT_POSITIONS_3D[id][2]).toBe(POWERTRAIN_SHAFT.z);
     }
+
+    // Verify all pipe service colors are defined
+    expect(PIPE_SERVICE_COLORS.air).toBe('#38bdf8');
+    expect(PIPE_SERVICE_COLORS['flue-gas']).toBe('#ef4444');
+    expect(PIPE_SERVICE_COLORS.steam).toBe('#f97316');
+    expect(PIPE_SERVICE_COLORS.water).toBe('#2563eb');
   });
 
   it('keeps shaft speed constant (grid-synchronized) when active and stops it when paused or invalid', () => {

@@ -1,24 +1,30 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Canvas, useFrame } from '@react-three/fiber';
-import { Html, OrbitControls } from '@react-three/drei';
+import { Canvas, useFrame, useThree } from '@react-three/fiber';
+import { ContactShadows, OrbitControls } from '@react-three/drei';
+import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 import * as THREE from 'three';
+import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import { useLanguage } from '../i18n/LanguageContext';
 import {
   PLANT_COMPONENTS,
   type CombinedCycleResult,
   type ComponentId,
-  type ComponentMeta,
 } from '../physics';
 import {
   buildSceneAnimationParams,
+  CAMERA_OVERVIEW_SHOT,
+  COMPONENT_CAMERA_SHOTS,
   COMPONENT_POSITIONS_3D,
+  PIPE_SERVICE_COLORS,
   POWERTRAIN_SHAFT,
   temperatureToHexColor,
-  type CombustorGlowParams,
+  type CameraShot,
   type PipeAnimationSegment,
+  type PipeColorMode,
   type QualityMode,
   type StackPlumeParams,
 } from '../scene/animationParams';
+import { OptionalPlantScenery, ProceduralEquipment } from '../scene/ProceduralEquipment';
 
 interface PlantScene3DProps {
   result: CombinedCycleResult;
@@ -26,6 +32,8 @@ interface PlantScene3DProps {
   onSelectComponent: (id: ComponentId) => void;
   flowPlaying: boolean;
   onToggleFlow: () => void;
+  showcaseMode: boolean;
+  onToggleShowcase: () => void;
 }
 
 class CanvasErrorBoundary extends React.Component<
@@ -47,6 +55,85 @@ class CanvasErrorBoundary extends React.Component<
   }
 }
 
+/**
+ * Local procedural studio environment map using Three.js RoomEnvironment (zero external HDRI/CDN files).
+ */
+const LocalStudioEnvironment: React.FC = () => {
+  const { gl, scene } = useThree();
+
+  useEffect(() => {
+    const pmremGenerator = new THREE.PMREMGenerator(gl);
+    pmremGenerator.compileEquirectangularShader();
+    const roomEnv = new RoomEnvironment();
+    const envTarget = pmremGenerator.fromScene(roomEnv, 0.04);
+    scene.environment = envTarget.texture;
+
+    return () => {
+      scene.environment = null;
+      envTarget.dispose();
+      roomEnv.dispose();
+      pmremGenerator.dispose();
+    };
+  }, [gl, scene]);
+
+  return null;
+};
+
+/**
+ * Reports exact real WebGL triangle count and draw calls onto the DOM wrapper for M3b/M7b verification.
+ */
+const WebGLStatsProbe: React.FC<{ wrapperRef: React.RefObject<HTMLDivElement | null> }> = ({
+  wrapperRef,
+}) => {
+  const { gl } = useThree();
+
+  useFrame(() => {
+    if (wrapperRef.current) {
+      wrapperRef.current.dataset.triangles = String(gl.info.render.triangles);
+      wrapperRef.current.dataset.drawcalls = String(gl.info.render.calls);
+    }
+  });
+
+  return null;
+};
+
+/**
+ * Smoothly interpolates camera position and OrbitControls target when focusing an equipment asset or returning to overview.
+ */
+const CameraFocusController: React.FC<{
+  activeShot: CameraShot;
+  controlsRef: React.RefObject<OrbitControlsImpl | null>;
+}> = ({ activeShot, controlsRef }) => {
+  const { camera } = useThree();
+  const desiredPos = useMemo(
+    () => new THREE.Vector3(...activeShot.position),
+    [activeShot.position],
+  );
+  const desiredTarget = useMemo(
+    () => new THREE.Vector3(...activeShot.target),
+    [activeShot.target],
+  );
+  const animRemainingRef = useRef(0);
+
+  useEffect(() => {
+    animRemainingRef.current = 1.1;
+  }, [desiredPos, desiredTarget]);
+
+  useFrame((_, delta) => {
+    if (animRemainingRef.current <= 0) return;
+    animRemainingRef.current = Math.max(0, animRemainingRef.current - delta);
+
+    const step = Math.min(1, delta * 5.5);
+    camera.position.lerp(desiredPos, step);
+    if (controlsRef.current) {
+      controlsRef.current.target.lerp(desiredTarget, step);
+      controlsRef.current.update();
+    }
+  });
+
+  return null;
+};
+
 interface SynchronousShaftProps {
   angularSpeed: number;
 }
@@ -61,31 +148,31 @@ const SynchronousShaft: React.FC<SynchronousShaftProps> = ({ angularSpeed }) => 
     }
   });
 
-  const collarXPositions = [-7.5, -5.4, -3.3, -1.0, 1.2, 3.6, 4.7, 6.7];
+  const collarXPositions = [-7.8, -5.6, -3.4, -1.0, 1.2, 3.6, 4.8, 6.9];
 
   return (
     <group
       ref={shaftGroupRef}
       position={[POWERTRAIN_SHAFT.centerX, POWERTRAIN_SHAFT.y, POWERTRAIN_SHAFT.z]}
     >
-      {/* Main continuous synchronous shaft */}
-      <mesh rotation={[0, 0, Math.PI / 2]}>
+      {/* Main continuous synchronous forged steel shaft */}
+      <mesh castShadow rotation={[0, 0, Math.PI / 2]}>
         <cylinderGeometry args={[0.14, 0.14, POWERTRAIN_SHAFT.length, 16]} />
-        <meshStandardMaterial color="#cbd5e1" metalness={0.85} roughness={0.2} />
+        <meshStandardMaterial color="#e2e8f0" metalness={0.88} roughness={0.18} />
       </mesh>
 
-      {/* Visual rotating coupling collars with keyway fins so shaft rotation is clearly visible */}
+      {/* Bolted coupling collars with keyway markers */}
       {collarXPositions.map((absX) => {
         const relX = absX - POWERTRAIN_SHAFT.centerX;
         return (
           <group key={absX} position={[relX, 0, 0]}>
             <mesh rotation={[0, 0, Math.PI / 2]}>
-              <cylinderGeometry args={[0.24, 0.24, 0.18, 8]} />
-              <meshStandardMaterial color="#38bdf8" metalness={0.6} roughness={0.3} />
+              <cylinderGeometry args={[0.24, 0.24, 0.16, 10]} />
+              <meshStandardMaterial color="#38bdf8" metalness={0.72} roughness={0.25} />
             </mesh>
             <mesh position={[0, 0.22, 0]}>
-              <boxGeometry args={[0.16, 0.16, 0.08]} />
-              <meshBasicMaterial color="#f8fafc" />
+              <boxGeometry args={[0.16, 0.15, 0.08]} />
+              <meshBasicMaterial color="#ffffff" />
             </mesh>
           </group>
         );
@@ -94,332 +181,60 @@ const SynchronousShaft: React.FC<SynchronousShaftProps> = ({ angularSpeed }) => 
   );
 };
 
-interface EquipmentMeshProps {
-  meta: ComponentMeta;
-  position: [number, number, number];
-  isSelected: boolean;
-  colorHex: string;
-  label: string;
-  shaftAngularSpeed: number;
-  combustorGlow: CombustorGlowParams;
-  qualityMode: QualityMode;
-  onSelect: () => void;
-}
-
-const EquipmentMesh: React.FC<EquipmentMeshProps> = ({
-  meta,
-  position,
-  isSelected,
-  colorHex,
-  label,
-  shaftAngularSpeed,
-  combustorGlow,
-  qualityMode,
-  onSelect,
-}) => {
-  const rotorRef = useRef<THREE.Group>(null);
-  const emissiveColor = isSelected ? '#38bdf8' : colorHex;
-  const emissiveIntensity = isSelected ? 0.65 : 0.2;
-
-  useFrame((_, delta) => {
-    if (rotorRef.current && shaftAngularSpeed > 0) {
-      rotorRef.current.rotation.x =
-        (rotorRef.current.rotation.x + delta * shaftAngularSpeed) % (Math.PI * 2);
-    }
-  });
-
-  const renderShape = () => {
-    switch (meta.id) {
-      case 'compressor':
-        return (
-          <group>
-            <mesh rotation={[0, 0, -Math.PI / 2]}>
-              <cylinderGeometry args={[0.52, 0.92, 1.9, 24]} />
-              <meshStandardMaterial
-                color={colorHex}
-                emissive={emissiveColor}
-                emissiveIntensity={emissiveIntensity}
-                metalness={0.5}
-                roughness={0.32}
-                transparent
-                opacity={0.88}
-              />
-            </mesh>
-            <group ref={rotorRef}>
-              <mesh position={[-0.65, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
-                <boxGeometry args={[1.5, 0.12, 0.25]} />
-                <meshStandardMaterial color="#e2e8f0" metalness={0.8} roughness={0.2} />
-              </mesh>
-              <mesh position={[-0.65, 0, 0]} rotation={[Math.PI / 2, 0, Math.PI / 2]}>
-                <boxGeometry args={[1.5, 0.12, 0.25]} />
-                <meshStandardMaterial color="#94a3b8" metalness={0.8} roughness={0.2} />
-              </mesh>
-            </group>
-          </group>
-        );
-
-      case 'combustor':
-        return (
-          <group>
-            {qualityMode === 'high' && (
-              <pointLight
-                color={combustorGlow.coreColorHex}
-                intensity={combustorGlow.pointLightIntensity}
-                distance={5.5}
-              />
-            )}
-            {/* Outer combustor casing */}
-            <mesh rotation={[0, 0, Math.PI / 2]}>
-              <capsuleGeometry args={[0.52, 1.05, 12, 24]} />
-              <meshStandardMaterial
-                color={combustorGlow.coreColorHex}
-                emissive={combustorGlow.coreColorHex}
-                emissiveIntensity={combustorGlow.emissiveIntensity * 0.55}
-                metalness={0.35}
-                roughness={0.28}
-                transparent
-                opacity={0.78}
-              />
-            </mesh>
-            {/* Glowing inner flame core scaled by T3 */}
-            <mesh
-              rotation={[0, 0, Math.PI / 2]}
-              scale={[
-                combustorGlow.flameScale,
-                combustorGlow.flameScale,
-                combustorGlow.flameScale,
-              ]}
-            >
-              <capsuleGeometry args={[0.36, 0.78, 10, 18]} />
-              <meshBasicMaterial color="#fff7ed" />
-            </mesh>
-            {/* Option B Procedural Additive Glow Halo */}
-            {qualityMode === 'high' && (
-              <mesh
-                rotation={[0, 0, Math.PI / 2]}
-                scale={[
-                  combustorGlow.flameScale * 1.35,
-                  combustorGlow.flameScale * 1.35,
-                  combustorGlow.flameScale * 1.35,
-                ]}
-              >
-                <capsuleGeometry args={[0.54, 1.1, 12, 20]} />
-                <meshBasicMaterial
-                  color={combustorGlow.coreColorHex}
-                  transparent
-                  opacity={combustorGlow.haloOpacity}
-                  blending={THREE.AdditiveBlending}
-                  depthWrite={false}
-                />
-              </mesh>
-            )}
-          </group>
-        );
-
-      case 'gasTurbine':
-        return (
-          <group>
-            <mesh rotation={[0, 0, -Math.PI / 2]}>
-              <cylinderGeometry args={[0.95, 0.54, 2.0, 24]} />
-              <meshStandardMaterial
-                color={colorHex}
-                emissive={emissiveColor}
-                emissiveIntensity={emissiveIntensity + 0.15}
-                metalness={0.48}
-                roughness={0.32}
-                transparent
-                opacity={0.88}
-              />
-            </mesh>
-            {qualityMode === 'high' && (
-              <mesh rotation={[0, 0, -Math.PI / 2]} scale={[1.12, 1.06, 1.12]}>
-                <cylinderGeometry args={[0.98, 0.56, 2.04, 20]} />
-                <meshBasicMaterial
-                  color={colorHex}
-                  transparent
-                  opacity={0.22}
-                  blending={THREE.AdditiveBlending}
-                  depthWrite={false}
-                />
-              </mesh>
-            )}
-            <group ref={rotorRef}>
-              <mesh position={[0.65, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
-                <boxGeometry args={[1.6, 0.14, 0.26]} />
-                <meshStandardMaterial color="#fde68a" metalness={0.75} roughness={0.25} />
-              </mesh>
-            </group>
-          </group>
-        );
-
-      case 'hrsg':
-        return (
-          <group>
-            <mesh position={[0, 0, 0]}>
-              <boxGeometry args={[2.0, 2.5, 1.5]} />
-              <meshStandardMaterial
-                color={colorHex}
-                emissive={emissiveColor}
-                emissiveIntensity={emissiveIntensity}
-                metalness={0.4}
-                roughness={0.4}
-              />
-            </mesh>
-            <mesh position={[0, 1.8, 0]}>
-              <cylinderGeometry args={[0.32, 0.42, 1.3, 20]} />
-              <meshStandardMaterial color="#64748b" metalness={0.5} roughness={0.4} />
-            </mesh>
-          </group>
-        );
-
-      case 'steamTurbine':
-        return (
-          <group>
-            <mesh rotation={[0, 0, -Math.PI / 2]}>
-              <cylinderGeometry args={[0.84, 0.46, 1.85, 24]} />
-              <meshStandardMaterial
-                color={colorHex}
-                emissive={emissiveColor}
-                emissiveIntensity={emissiveIntensity}
-                metalness={0.52}
-                roughness={0.3}
-                transparent
-                opacity={0.88}
-              />
-            </mesh>
-            <group ref={rotorRef}>
-              <mesh position={[0.55, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
-                <boxGeometry args={[1.45, 0.12, 0.22]} />
-                <meshStandardMaterial color="#bae6fd" metalness={0.8} roughness={0.2} />
-              </mesh>
-            </group>
-          </group>
-        );
-
-      case 'condenser':
-        return (
-          <mesh rotation={[0, 0, Math.PI / 2]}>
-            <cylinderGeometry args={[0.65, 0.65, 1.75, 24]} />
-            <meshStandardMaterial
-              color={colorHex}
-              emissive={emissiveColor}
-              emissiveIntensity={emissiveIntensity}
-              metalness={0.35}
-              roughness={0.4}
-            />
-          </mesh>
-        );
-
-      case 'pump':
-        return (
-          <mesh>
-            <torusGeometry args={[0.42, 0.22, 16, 28]} />
-            <meshStandardMaterial
-              color={colorHex}
-              emissive={emissiveColor}
-              emissiveIntensity={emissiveIntensity}
-              metalness={0.5}
-              roughness={0.3}
-            />
-          </mesh>
-        );
-
-      case 'generator':
-        return (
-          <group>
-            <mesh>
-              <boxGeometry args={[1.65, 1.25, 1.25]} />
-              <meshStandardMaterial
-                color="#2563eb"
-                emissive={isSelected ? '#60a5fa' : '#1d4ed8'}
-                emissiveIntensity={emissiveIntensity}
-                metalness={0.55}
-                roughness={0.28}
-                transparent
-                opacity={0.86}
-              />
-            </mesh>
-            <group ref={rotorRef}>
-              <mesh rotation={[0, 0, Math.PI / 2]}>
-                <cylinderGeometry args={[0.42, 0.42, 1.85, 8]} />
-                <meshStandardMaterial color="#93c5fd" metalness={0.7} roughness={0.25} />
-              </mesh>
-            </group>
-          </group>
-        );
-    }
-  };
-
-  return (
-    <group
-      position={position}
-      onClick={(e) => {
-        e.stopPropagation();
-        onSelect();
-      }}
-    >
-      {renderShape()}
-      {isSelected && (
-        <mesh position={[0, -1.05, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-          <ringGeometry args={[1.05, 1.28, 32]} />
-          <meshBasicMaterial color="#38bdf8" side={THREE.DoubleSide} />
-        </mesh>
-      )}
-      <Html position={[0, 1.48, 0]} center distanceFactor={15}>
-        <button
-          type="button"
-          className={`scene-tag ${isSelected ? 'scene-tag-active' : ''}`}
-          onClick={onSelect}
-        >
-          {label}
-        </button>
-      </Html>
-    </group>
-  );
-};
-
-interface GradientPipeWithParticlesProps {
+interface IndustrialPipeWithParticlesProps {
   seg: PipeAnimationSegment;
+  pipeColorMode: PipeColorMode;
   qualityMode: QualityMode;
 }
 
-const GradientPipeWithParticles: React.FC<GradientPipeWithParticlesProps> = ({
+const IndustrialPipeWithParticles: React.FC<IndustrialPipeWithParticlesProps> = ({
   seg,
+  pipeColorMode,
   qualityMode,
 }) => {
   const instancedRef = useRef<THREE.InstancedMesh>(null);
   const phaseOffsetRef = useRef(0);
   const particleCount = qualityMode === 'high' ? 16 : 8;
 
-  const { curve, tubeGeo } = useMemo(() => {
+  const { curve, tubeGeo, startPt, endPt } = useMemo(() => {
     const pts = seg.waypoints.map((w) => new THREE.Vector3(...w));
     const c = new THREE.CatmullRomCurve3(pts);
     const tubularSegments = qualityMode === 'high' ? 28 : 14;
     const radialSegments = qualityMode === 'high' ? 12 : 8;
-    const g = new THREE.TubeGeometry(c, tubularSegments, 0.105, radialSegments, false);
+    const g = new THREE.TubeGeometry(c, tubularSegments, 0.11, radialSegments, false);
 
-    // Apply smooth inlet -> outlet temperature vertex color gradient
     const posAttr = g.attributes.position;
     const colors = new Float32Array(posAttr.count * 3);
-    const startVec = pts[0];
-    const endVec = pts[pts.length - 1];
-    const totalSpan = Math.max(0.001, startVec.distanceTo(endVec));
+    const sVec = pts[0];
+    const eVec = pts[pts.length - 1];
+    const totalSpan = Math.max(0.001, sVec.distanceTo(eVec));
     const tmpVec = new THREE.Vector3();
     const tmpColor = new THREE.Color();
 
     for (let i = 0; i < posAttr.count; i++) {
-      tmpVec.fromBufferAttribute(posAttr, i);
-      const u = Math.max(0, Math.min(1, tmpVec.distanceTo(startVec) / totalSpan));
-      const localT_K = seg.inletT_K + u * (seg.outletT_K - seg.inletT_K);
-      tmpColor.set(temperatureToHexColor(localT_K));
+      if (pipeColorMode === 'service') {
+        tmpColor.set(seg.serviceColorHex);
+      } else {
+        tmpVec.fromBufferAttribute(posAttr, i);
+        const u = Math.max(0, Math.min(1, tmpVec.distanceTo(sVec) / totalSpan));
+        const localT_K = seg.inletT_K + u * (seg.outletT_K - seg.inletT_K);
+        tmpColor.set(temperatureToHexColor(localT_K));
+      }
       colors[i * 3] = tmpColor.r;
       colors[i * 3 + 1] = tmpColor.g;
       colors[i * 3 + 2] = tmpColor.b;
     }
 
     g.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-    return { curve: c, tubeGeo: g };
-  }, [seg.waypoints, seg.inletT_K, seg.outletT_K, qualityMode]);
+    return { curve: c, tubeGeo: g, startPt: sVec, endPt: eVec };
+  }, [
+    seg.waypoints,
+    seg.inletT_K,
+    seg.outletT_K,
+    seg.serviceColorHex,
+    pipeColorMode,
+    qualityMode,
+  ]);
 
   useEffect(() => {
     return () => {
@@ -427,31 +242,29 @@ const GradientPipeWithParticles: React.FC<GradientPipeWithParticlesProps> = ({
     };
   }, [tubeGeo]);
 
-  // Determine particle color & geometry scale from fluid phase & steam quality x
   const { particleColorHex, particleScaleVec } = useMemo(() => {
     if (seg.particleStyle === 'liquid-water') {
       return {
-        particleColorHex: '#38bdf8',
+        particleColorHex: '#60a5fa',
         particleScaleVec: new THREE.Vector3(0.88, 0.88, 0.88),
       };
     }
     if (seg.particleStyle === 'superheated-steam') {
       return {
-        particleColorHex: '#f0f9ff',
+        particleColorHex: '#fff7ed',
         particleScaleVec: new THREE.Vector3(0.68, 2.25, 0.68),
       };
     }
     if (seg.particleStyle === 'wet-steam') {
       const x = Math.max(0, Math.min(1, seg.vaporQuality ?? 0.85));
-      const c = new THREE.Color('#38bdf8').lerp(new THREE.Color('#e0f2fe'), x);
+      const c = new THREE.Color('#38bdf8').lerp(new THREE.Color('#ffffff'), x);
       return {
         particleColorHex: `#${c.getHexString()}`,
         particleScaleVec: new THREE.Vector3(0.78, 0.9 + 1.15 * x, 0.78),
       };
     }
-    // Gas path
     return {
-      particleColorHex: '#fff7ed',
+      particleColorHex: '#fef08a',
       particleScaleVec: new THREE.Vector3(1.0, 1.35, 1.0),
     };
   }, [seg.particleStyle, seg.vaporQuality]);
@@ -482,24 +295,33 @@ const GradientPipeWithParticles: React.FC<GradientPipeWithParticlesProps> = ({
 
   return (
     <group>
-      <mesh geometry={tubeGeo}>
+      {/* Insulated metallic pipe body */}
+      <mesh castShadow geometry={tubeGeo}>
         <meshStandardMaterial
           vertexColors
-          metalness={0.25}
-          roughness={0.35}
+          metalness={0.48}
+          roughness={0.32}
           transparent
           opacity={0.72}
         />
       </mesh>
+      {/* Pipe endpoint flange collars */}
+      <mesh position={startPt}>
+        <sphereGeometry args={[0.16, 10, 10]} />
+        <meshStandardMaterial color="#94a3b8" metalness={0.78} roughness={0.28} />
+      </mesh>
+      <mesh position={endPt}>
+        <sphereGeometry args={[0.16, 10, 10]} />
+        <meshStandardMaterial color="#94a3b8" metalness={0.78} roughness={0.28} />
+      </mesh>
+      {/* Instanced flow particles */}
       <instancedMesh ref={instancedRef} args={[undefined, undefined, particleCount]}>
         <sphereGeometry args={[0.135, 10, 10]} />
         <meshBasicMaterial
           color={particleColorHex}
           transparent
-          opacity={0.94}
-          blending={
-            qualityMode === 'high' ? THREE.AdditiveBlending : THREE.NormalBlending
-          }
+          opacity={0.95}
+          blending={qualityMode === 'high' ? THREE.AdditiveBlending : THREE.NormalBlending}
           depthWrite={false}
         />
       </instancedMesh>
@@ -532,9 +354,9 @@ const StackPlumeMesh: React.FC<StackPlumeMeshProps> = ({ plume, qualityMode }) =
       const y = by + u * 2.4;
       const swayX = Math.sin(u * Math.PI * 2 + i) * 0.22 * u;
       const swayZ = Math.cos(u * Math.PI * 2 + i) * 0.18 * u;
-      const radiusScale = 0.55 + u * 1.45 * plume.normalizedStackTemp;
+      const radiusScale = 0.52 + u * 1.45 * plume.normalizedStackTemp;
 
-      dummy.position.set(bx + swayX, y, bz + swayZ);
+      dummy.position.set(bx - 0.45 + swayX, y, bz + swayZ);
       dummy.scale.set(radiusScale, radiusScale * 0.8, radiusScale);
       dummy.updateMatrix();
       mesh.setMatrixAt(i, dummy.matrix);
@@ -561,11 +383,59 @@ export const PlantScene3D: React.FC<PlantScene3DProps> = ({
   onSelectComponent,
   flowPlaying,
   onToggleFlow,
+  showcaseMode,
+  onToggleShowcase,
 }) => {
   const { t } = useLanguage();
-  const [qualityMode, setQualityMode] = useState<QualityMode>(() =>
-    typeof window !== 'undefined' && window.innerWidth <= 768 ? 'low' : 'high',
+  const wrapperRef = useRef<HTMLDivElement | null>(null);
+  const controlsRef = useRef<OrbitControlsImpl | null>(null);
+
+  const searchParams = useMemo(
+    () =>
+      typeof window !== 'undefined'
+        ? new URLSearchParams(window.location.search)
+        : new URLSearchParams(),
+    [],
   );
+
+  const [qualityMode, setQualityMode] = useState<QualityMode>(() => {
+    const q = searchParams.get('quality');
+    if (q === 'low' || q === 'high') return q;
+    return typeof window !== 'undefined' && window.innerWidth <= 768 ? 'low' : 'high';
+  });
+
+  // Decision 1: Scenery ON by default in High quality, OFF by default in Low quality
+  const [showScenery, setShowScenery] = useState<boolean>(() => qualityMode === 'high');
+
+  // Decision 2: Pipe colors toggle "Service colors / Temperature", Default = Service colors
+  const [pipeColorMode, setPipeColorMode] = useState<PipeColorMode>(() =>
+    searchParams.get('pipeMode') === 'temperature' ? 'temperature' : 'service',
+  );
+
+  // Camera zoom focus state (null = full overview, or a ComponentId when zoomed in)
+  const [focusedComponent, setFocusedComponent] = useState<ComponentId | null>(() => {
+    const focusParam = searchParams.get('focus') as ComponentId | null;
+    if (focusParam && focusParam in COMPONENT_CAMERA_SHOTS) {
+      return focusParam;
+    }
+    return null;
+  });
+
+  const handleQualityChange = (mode: QualityMode) => {
+    setQualityMode(mode);
+    setShowScenery(mode === 'high');
+  };
+
+  const handleSelectAndFocus = (id: ComponentId) => {
+    onSelectComponent(id);
+    if (showcaseMode) {
+      setFocusedComponent(id);
+    }
+  };
+
+  const activeCameraShot: CameraShot = focusedComponent
+    ? COMPONENT_CAMERA_SHOTS[focusedComponent]
+    : CAMERA_OVERVIEW_SHOT;
 
   const animParams = useMemo(
     () => buildSceneAnimationParams(result, flowPlaying),
@@ -573,32 +443,102 @@ export const PlantScene3D: React.FC<PlantScene3DProps> = ({
   );
 
   return (
-    <section className="scene-card" aria-label={t.appTitle}>
+    <section
+      className={`scene-card ${showcaseMode ? 'scene-card-showcase' : ''}`}
+      aria-label={t.appTitle}
+    >
       <div className="scene-toolbar">
+        {/* Pipe Legend: Service Colors Mode vs Temperature Gradient Mode */}
         <div className="temp-legend-container">
-          <div className="temp-legend">
-            <span className="temp-legend-label">{t.animation.tempLegend}</span>
-            <div className="temp-gradient-bar" />
-          </div>
-          <div className="temp-ticks-row">
-            {animParams.legendTicks.map((tick) => (
-              <span key={tick.fraction} className="temp-tick-item">
+          {pipeColorMode === 'service' ? (
+            <div className="temp-ticks-row">
+              <span className="temp-tick-item">
                 <span
                   className="state-dot"
-                  style={{ backgroundColor: tick.colorHex }}
+                  style={{ backgroundColor: PIPE_SERVICE_COLORS.air }}
                 />
-                {tick.labelK} ({tick.labelC})
+                {t.animation.serviceLegend.air}
               </span>
-            ))}
-          </div>
+              <span className="temp-tick-item">
+                <span
+                  className="state-dot"
+                  style={{ backgroundColor: PIPE_SERVICE_COLORS['flue-gas'] }}
+                />
+                {t.animation.serviceLegend.flueGas}
+              </span>
+              <span className="temp-tick-item">
+                <span
+                  className="state-dot"
+                  style={{ backgroundColor: PIPE_SERVICE_COLORS.steam }}
+                />
+                {t.animation.serviceLegend.steam}
+              </span>
+              <span className="temp-tick-item">
+                <span
+                  className="state-dot"
+                  style={{ backgroundColor: PIPE_SERVICE_COLORS.water }}
+                />
+                {t.animation.serviceLegend.water}
+              </span>
+            </div>
+          ) : (
+            <>
+              <div className="temp-legend">
+                <span className="temp-legend-label">{t.animation.tempLegend}</span>
+                <div className="temp-gradient-bar" />
+              </div>
+              <div className="temp-ticks-row">
+                {animParams.legendTicks.map((tick) => (
+                  <span key={tick.fraction} className="temp-tick-item">
+                    <span
+                      className="state-dot"
+                      style={{ backgroundColor: tick.colorHex }}
+                    />
+                    {tick.labelK} ({tick.labelC})
+                  </span>
+                ))}
+              </div>
+            </>
+          )}
         </div>
 
         <div className="scene-controls-right">
+          {/* Pipe Color Mode Switch: Service Colors / Temperature */}
+          <div className="lang-switcher" role="group" aria-label={t.animation.pipeColorModeLabel}>
+            <button
+              type="button"
+              className={`lang-btn ${pipeColorMode === 'service' ? 'lang-btn-active' : ''}`}
+              onClick={() => setPipeColorMode('service')}
+              aria-pressed={pipeColorMode === 'service'}
+            >
+              {t.animation.serviceColors}
+            </button>
+            <button
+              type="button"
+              className={`lang-btn ${pipeColorMode === 'temperature' ? 'lang-btn-active' : ''}`}
+              onClick={() => setPipeColorMode('temperature')}
+              aria-pressed={pipeColorMode === 'temperature'}
+            >
+              {t.animation.temperatureColors}
+            </button>
+          </div>
+
+          {/* Scenery Toggle */}
+          <button
+            type="button"
+            className={`flow-toggle-btn ${showScenery ? 'btn-active-accent' : ''}`}
+            onClick={() => setShowScenery((prev) => !prev)}
+            aria-pressed={showScenery}
+          >
+            {showScenery ? t.animation.sceneryOn : t.animation.sceneryOff}
+          </button>
+
+          {/* Quality Mode Switch: High / Low */}
           <div className="lang-switcher" role="group" aria-label={t.animation.qualityLabel}>
             <button
               type="button"
               className={`lang-btn ${qualityMode === 'high' ? 'lang-btn-active' : ''}`}
-              onClick={() => setQualityMode('high')}
+              onClick={() => handleQualityChange('high')}
               aria-pressed={qualityMode === 'high'}
             >
               {t.animation.qualityHigh}
@@ -606,13 +546,14 @@ export const PlantScene3D: React.FC<PlantScene3DProps> = ({
             <button
               type="button"
               className={`lang-btn ${qualityMode === 'low' ? 'lang-btn-active' : ''}`}
-              onClick={() => setQualityMode('low')}
+              onClick={() => handleQualityChange('low')}
               aria-pressed={qualityMode === 'low'}
             >
               {t.animation.qualityLow}
             </button>
           </div>
 
+          {/* Flow Play / Pause */}
           <button
             type="button"
             className="flow-toggle-btn"
@@ -621,27 +562,95 @@ export const PlantScene3D: React.FC<PlantScene3DProps> = ({
           >
             {flowPlaying ? t.animation.pause : t.animation.play}
           </button>
+
+          {/* Showcase Mode Toggle */}
+          <button
+            type="button"
+            className={`flow-toggle-btn ${showcaseMode ? 'btn-showcase-active' : ''}`}
+            onClick={() => {
+              if (showcaseMode) {
+                setFocusedComponent(null);
+              }
+              onToggleShowcase();
+            }}
+            aria-pressed={showcaseMode}
+          >
+            {showcaseMode ? t.animation.showcaseExit : t.animation.showcaseEnter}
+          </button>
         </div>
       </div>
 
-      <div className="canvas-wrapper">
-        <CanvasErrorBoundary>
-          <Canvas camera={{ position: [0, 6.6, 12.2], fov: 44 }}>
-            <ambientLight intensity={0.75} />
-            <directionalLight position={[8, 14, 10]} intensity={1.15} />
-            <directionalLight position={[-8, 6, -8]} intensity={0.45} />
+      <div
+        ref={wrapperRef}
+        className={`canvas-wrapper ${showcaseMode ? 'canvas-wrapper-showcase' : ''}`}
+      >
+        {(showcaseMode || focusedComponent !== null) && (
+          <div className="showcase-hud-overlay">
+            {focusedComponent !== null && (
+              <button
+                type="button"
+                className="back-overview-btn"
+                onClick={() => setFocusedComponent(null)}
+              >
+                ← {t.animation.backToOverview}
+              </button>
+            )}
+            <div className="showcase-focused-card">
+              <strong>{t.components[selectedComponent].name}</strong>
+              <span>{t.components[selectedComponent].role}</span>
+            </div>
+          </div>
+        )}
 
-            <gridHelper args={[20, 20, '#1e293b', '#0f172a']} position={[0, -0.75, 0]} />
+        <CanvasErrorBoundary>
+          <Canvas
+            shadows={qualityMode === 'high'}
+            camera={{ position: CAMERA_OVERVIEW_SHOT.position, fov: 42 }}
+          >
+            <LocalStudioEnvironment />
+            <WebGLStatsProbe wrapperRef={wrapperRef} />
+            <CameraFocusController activeShot={activeCameraShot} controlsRef={controlsRef} />
+
+            {/* Soft Studio Key, Fill, and Warm Rim Lighting */}
+            <hemisphereLight args={['#e0f2fe', '#0f172a', 0.65]} />
+            <directionalLight
+              castShadow={qualityMode === 'high'}
+              position={[10, 16, 11]}
+              intensity={1.35}
+              shadow-mapSize={[1024, 1024]}
+              shadow-camera-left={-12}
+              shadow-camera-right={12}
+              shadow-camera-top={10}
+              shadow-camera-bottom={-10}
+            />
+            <directionalLight position={[-9, 8, -9]} intensity={0.5} color="#bae6fd" />
+
+            {/* Industrial Power Plant Concrete Floor Slab & Grid */}
+            <mesh receiveShadow position={[0, -0.32, -0.4]} rotation={[-Math.PI / 2, 0, 0]}>
+              <planeGeometry args={[24, 14]} />
+              <meshStandardMaterial color="#0f172a" metalness={0.12} roughness={0.86} />
+            </mesh>
+            <gridHelper args={[24, 24, '#1e293b', '#131f33']} position={[0, -0.31, -0.4]} />
+
+            {qualityMode === 'high' && (
+              <ContactShadows
+                position={[0, -0.3, -0.4]}
+                opacity={0.45}
+                scale={22}
+                blur={1.8}
+                far={4.5}
+              />
+            )}
 
             {/* Single visible synchronous powertrain shaft */}
             <SynchronousShaft angularSpeed={animParams.shaftAngularSpeedRadPerSec} />
 
-            {/* 8 Plant Equipment Components */}
+            {/* 8 Detailed Procedural Plant Equipment Components */}
             {PLANT_COMPONENTS.map((meta) => {
               const outState = result.states[meta.outletStateId];
               const colorHex = temperatureToHexColor(outState.T_K);
               return (
-                <EquipmentMesh
+                <ProceduralEquipment
                   key={meta.id}
                   meta={meta}
                   position={COMPONENT_POSITIONS_3D[meta.id]}
@@ -651,16 +660,20 @@ export const PlantScene3D: React.FC<PlantScene3DProps> = ({
                   shaftAngularSpeed={animParams.shaftAngularSpeedRadPerSec}
                   combustorGlow={animParams.combustorGlow}
                   qualityMode={qualityMode}
-                  onSelect={() => onSelectComponent(meta.id)}
+                  onSelect={() => {
+                    onSelectComponent(meta.id);
+                    setFocusedComponent(meta.id);
+                  }}
                 />
               );
             })}
 
-            {/* Smooth Gradient Pipes with Instanced Phase-Styled Flow Particles */}
+            {/* Industrial Pipes with Flanges & Instanced Phase-Styled Flow Particles */}
             {animParams.pipes.map((seg) => (
-              <GradientPipeWithParticles
+              <IndustrialPipeWithParticles
                 key={seg.id}
                 seg={seg}
+                pipeColorMode={pipeColorMode}
                 qualityMode={qualityMode}
               />
             ))}
@@ -668,13 +681,17 @@ export const PlantScene3D: React.FC<PlantScene3DProps> = ({
             {/* Rising HRSG Stack Exhaust Plume */}
             <StackPlumeMesh plume={animParams.stackPlume} qualityMode={qualityMode} />
 
+            {/* Optional Scenery (Cooling Tower, HV Pylon & Transformer, Fuel Gas Line) */}
+            {showScenery && <OptionalPlantScenery />}
+
             <OrbitControls
+              ref={controlsRef}
               enablePan
               enableZoom
               enableRotate
-              minDistance={5}
-              maxDistance={24}
-              target={[0, 0.8, -0.6]}
+              minDistance={2.6}
+              maxDistance={26}
+              target={CAMERA_OVERVIEW_SHOT.target}
             />
           </Canvas>
         </CanvasErrorBoundary>
@@ -694,7 +711,7 @@ export const PlantScene3D: React.FC<PlantScene3DProps> = ({
               role="tab"
               aria-selected={active}
               className={`equip-chip ${active ? 'equip-chip-active' : ''}`}
-              onClick={() => onSelectComponent(meta.id)}
+              onClick={() => handleSelectAndFocus(meta.id)}
             >
               {t.components[meta.id].name}
             </button>

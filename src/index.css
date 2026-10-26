@@ -91,6 +91,83 @@ body {
   flex: 1;
 }
 
+.workspace-showcase {
+  grid-template-columns: 1fr;
+  padding: 0.6rem 1rem;
+}
+
+.scene-card-showcase {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.canvas-wrapper {
+  position: relative;
+  width: 100%;
+  height: 390px;
+  border-radius: 0.55rem;
+  overflow: hidden;
+  background: radial-gradient(circle at center, #132038 0%, #090f1d 100%);
+  border: 1px solid #1e293b;
+}
+
+.canvas-wrapper-showcase {
+  height: calc(100vh - 155px);
+  min-height: 540px;
+}
+
+.showcase-hud-overlay {
+  position: absolute;
+  top: 0.85rem;
+  left: 0.85rem;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  pointer-events: none;
+}
+
+.back-overview-btn {
+  pointer-events: auto;
+  background: #0284c7;
+  color: #ffffff;
+  border: 1px solid #7dd3fc;
+  border-radius: 0.45rem;
+  padding: 0.45rem 0.85rem;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
+}
+
+.showcase-focused-card {
+  background: rgba(15, 23, 42, 0.9);
+  border: 1px solid #334155;
+  border-radius: 0.5rem;
+  padding: 0.45rem 0.8rem;
+  display: flex;
+  flex-direction: column;
+  font-size: 0.78rem;
+  color: #cbd5e1;
+}
+
+.showcase-focused-card strong {
+  color: #38bdf8;
+  font-size: 0.86rem;
+}
+
+.btn-active-accent {
+  border-color: #38bdf8;
+  color: #7dd3fc;
+}
+
+.btn-showcase-active {
+  background: #0284c7;
+  border-color: #7dd3fc;
+  color: #ffffff;
+}
+
 .main-stage {
   display: flex;
   flex-direction: column;
@@ -177,15 +254,6 @@ body {
 
 .flow-toggle-btn:hover {
   background: #334155;
-}
-
-.canvas-wrapper {
-  width: 100%;
-  height: 360px;
-  border-radius: 0.55rem;
-  overflow: hidden;
-  background: radial-gradient(circle at center, #132038 0%, #090f1d 100%);
-  border: 1px solid #1e293b;
 }
 
 .scene-tag {

@@ -45,9 +45,10 @@ export const DEFAULT_PARAMETERS: CycleParameters = {
 /** Reference entropy at ambient air state (T1, p1) [kJ/(kg·K)] */
 export const AIR_REF_ENTROPY_kJkgK = 1.0;
 
-/** Metadata for the 8 plant components per SPEC.md sections 5 & 6 (pure thermodynamic topology, no 3D coords) */
+/** Metadata for the 8 plant components per SPEC.md sections 5 & 6 */
 export interface ComponentMeta {
   id: ComponentId;
+  position3D: [number, number, number];
   inletStateId: StatePointId;
   outletStateId: StatePointId;
   secondaryInletStateId?: StatePointId;
@@ -58,24 +59,28 @@ export interface ComponentMeta {
 export const PLANT_COMPONENTS: readonly ComponentMeta[] = [
   {
     id: 'compressor',
+    position3D: [-6.5, 0.8, -1.5],
     inletStateId: 1,
     outletStateId: 2,
     lawIds: [1, 2, 3, 4, 5, 10],
   },
   {
     id: 'combustor',
+    position3D: [-3.5, 2.2, -1.5],
     inletStateId: 2,
     outletStateId: 3,
     lawIds: [1, 3, 5, 8, 10],
   },
   {
     id: 'gasTurbine',
+    position3D: [-0.5, 0.8, -1.5],
     inletStateId: 3,
     outletStateId: 4,
     lawIds: [1, 2, 3, 4, 5, 10],
   },
   {
     id: 'hrsg',
+    position3D: [2.8, 1.5, -1.5],
     inletStateId: 4,
     outletStateId: 5,
     secondaryInletStateId: 7,
@@ -84,24 +89,28 @@ export const PLANT_COMPONENTS: readonly ComponentMeta[] = [
   },
   {
     id: 'steamTurbine',
+    position3D: [2.8, 0.8, 2.2],
     inletStateId: 8,
     outletStateId: 9,
     lawIds: [1, 2, 6, 10],
   },
   {
     id: 'condenser',
+    position3D: [6.0, 0.2, 2.2],
     inletStateId: 9,
     outletStateId: 6,
     lawIds: [1, 6, 10],
   },
   {
     id: 'pump',
+    position3D: [6.0, 0.2, -0.2],
     inletStateId: 6,
     outletStateId: 7,
     lawIds: [1, 2, 6, 10],
   },
   {
     id: 'generator',
+    position3D: [-0.5, 0.8, 2.2],
     inletStateId: 3,
     outletStateId: 4,
     secondaryInletStateId: 8,

@@ -15,7 +15,21 @@
     "tempLegend": "Pipe Temperature Scale (Cold → Hot)",
     "qualityLabel": "Graphics",
     "qualityHigh": "High",
-    "qualityLow": "Low"
+    "qualityLow": "Low",
+    "pipeColorModeLabel": "Pipe Colors",
+    "serviceColors": "Service Colors",
+    "temperatureColors": "Temperature",
+    "serviceLegend": {
+      "air": "Compressed Air",
+      "flueGas": "Hot Exhaust Gas",
+      "steam": "Superheated / Wet Steam",
+      "water": "Feedwater / Condensate"
+    },
+    "sceneryOn": "Scenery: On",
+    "sceneryOff": "Scenery: Off",
+    "showcaseEnter": "Showcase Mode",
+    "showcaseExit": "Exit Showcase",
+    "backToOverview": "Back to Full View"
   },
   "sliders": {
     "title": "Operating Parameters",

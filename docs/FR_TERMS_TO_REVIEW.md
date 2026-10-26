@@ -7,6 +7,10 @@ Every French technical and thermodynamic term in `src/i18n/fr.json` is listed be
 | `appSubtitle` | Combined Cycle Power Plant Simulator (Brayton + Rankine) | Simulateur de centrale à cycle combiné (Brayton + Rankine) | Standard term: *centrale à cycle combiné* (CCGT / CCPP). |
 | `disclaimer` | Simplified educational model, not for plant design. | Modèle pédagogique simplifié, non destiné au dimensionnement industriel. | Required educational disclaimer. |
 | `animation.play` / `pause` | Play Flow / Pause Flow | Animer l'écoulement / Pause écoulement | *Écoulement* = fluid flow. |
+| `animation.serviceColors` | Service Colors | Service (Fluide) | Standard industrial piping color coding by fluid service. |
+| `animation.serviceLegend.water` | Feedwater / Condensate | Eau alimentaire / Condensat | *Condensat* = condensed steam leaving the surface condenser. |
+| `animation.showcaseEnter` | Showcase Mode | Mode vitrine | Full-screen 3D plant presentation mode. |
+| `animation.backToOverview` | Back to Full View | Vue d'ensemble | Returns the 3D camera to the full plant overview. |
 | `sliders.titLabel` | Turbine Inlet Temperature (T3) | Température d'entrée turbine (T3) | Abbreviated TET in French (*Température d'Entrée Turbine*) / TIT in English. |
 | `sliders.rpLabel` | Compressor Pressure Ratio (rp) | Taux de compression (rp) | Also called *rapport de pression*. |
 | `sliders.etaComp` | Compressor Isentropic Eff. (η_c) | Rendement isentropique compresseur (η_c) | *Rendement isentropique* is the standard thermodynamic term. |

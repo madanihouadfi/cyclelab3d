@@ -167,7 +167,7 @@ export const TsDiagram: React.FC<TsDiagramProps> = ({ result }) => {
                 cx={pt.x}
                 cy={pt.y}
                 r={isHovered ? 7 : 5}
-                fill={temperatureToHexColor(pt.T_K)}
+                fill={temperatureToHexColor(result.states[pt.id].T_K)}
                 stroke="#ffffff"
                 strokeWidth={isHovered ? 2.2 : 1.2}
               />

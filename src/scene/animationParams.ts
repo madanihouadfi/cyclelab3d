@@ -2,19 +2,38 @@ import {
   DEFAULT_PARAMETERS,
   KELVIN_OFFSET,
   SLIDER_BOUNDS,
-   solveCombinedCycle,
+  solveCombinedCycle,
+  temperatureToHexColor,
   type CombinedCycleResult,
   type ComponentId,
   type StatePointId,
 } from '../physics';
 
+export { temperatureToHexColor };
+
 export type QualityMode = 'high' | 'low';
+export type PipeColorMode = 'service' | 'temperature';
+export type PipeServiceType = 'air' | 'flue-gas' | 'steam' | 'water';
 
 export type ParticlePhaseStyle =
   | 'gas'
   | 'liquid-water'
   | 'wet-steam'
   | 'superheated-steam';
+
+/**
+ * Industrial pipe service colors per M3b specification:
+ * - air: sky blue
+ * - flue-gas: red hot exhaust gas
+ * - steam: orange/red steam
+ * - water: deep industrial water blue
+ */
+export const PIPE_SERVICE_COLORS: Record<PipeServiceType, string> = {
+  air: '#38bdf8',
+  'flue-gas': '#ef4444',
+  steam: '#f97316',
+  water: '#2563eb',
+};
 
 /**
  * Reference steam mass flow rate at default parameters [kg/s],
@@ -25,27 +44,75 @@ const DEFAULT_STEAM_MDOT_KGS = solveCombinedCycle(DEFAULT_PARAMETERS).steamMassF
 /**
  * 3D positions of the 8 plant components.
  * Compressor, Gas Turbine, Steam Turbine, and Generator are aligned coaxially
- * along the single synchronous powertrain shaft at (y = 0.8, z = -1.0).
+ * along the single synchronous powertrain shaft at (y = 0.85, z = -1.0).
  */
 export const COMPONENT_POSITIONS_3D: Record<ComponentId, [number, number, number]> = {
-  compressor: [-6.6, 0.8, -1.0],
-  combustor: [-4.4, 2.35, -1.0],
-  gasTurbine: [-2.2, 0.8, -1.0],
-  hrsg: [0.0, 1.5, -3.3],
-  steamTurbine: [2.4, 0.8, -1.0],
-  generator: [5.8, 0.8, -1.0],
-  condenser: [2.4, 0.15, 2.1],
-  pump: [-0.8, 0.15, 2.1],
+  compressor: [-6.8, 0.85, -1.0],
+  combustor: [-4.5, 2.35, -1.0],
+  gasTurbine: [-2.2, 0.85, -1.0],
+  hrsg: [0.0, 1.85, -3.5],
+  steamTurbine: [2.4, 0.85, -1.0],
+  generator: [6.0, 0.85, -1.0],
+  condenser: [2.4, 0.25, 2.2],
+  pump: [-1.0, 0.25, 2.2],
+};
+
+export interface CameraShot {
+  position: [number, number, number];
+  target: [number, number, number];
+}
+
+export const CAMERA_OVERVIEW_SHOT: CameraShot = {
+  position: [0.2, 7.2, 13.8],
+  target: [0.0, 1.1, -0.8],
+};
+
+/**
+ * Smooth camera close-up framing targets for each of the 8 components in Showcase / Focus mode.
+ */
+export const COMPONENT_CAMERA_SHOTS: Record<ComponentId, CameraShot> = {
+  compressor: {
+    position: [-8.6, 2.5, 2.6],
+    target: [-6.8, 0.9, -1.0],
+  },
+  combustor: {
+    position: [-4.5, 3.6, 2.2],
+    target: [-4.5, 2.2, -1.0],
+  },
+  gasTurbine: {
+    position: [-2.4, 2.45, 2.4],
+    target: [-2.2, 0.95, -1.0],
+  },
+  hrsg: {
+    position: [2.6, 3.4, 0.4],
+    target: [0.0, 2.1, -3.5],
+  },
+  steamTurbine: {
+    position: [2.4, 2.4, 2.5],
+    target: [2.4, 0.9, -1.0],
+  },
+  generator: {
+    position: [7.8, 2.5, 2.8],
+    target: [6.0, 0.9, -1.0],
+  },
+  condenser: {
+    position: [4.2, 1.8, 5.2],
+    target: [2.4, 0.35, 2.2],
+  },
+  pump: {
+    position: [-1.0, 1.6, 4.8],
+    target: [-1.0, 0.3, 2.2],
+  },
 };
 
 /**
  * Single visible powertrain shaft geometry parameters.
  */
 export const POWERTRAIN_SHAFT = {
-  y: 0.8,
+  y: 0.85,
   z: -1.0,
-  xStart: -7.9,
-  xEnd: 6.9,
+  xStart: -8.2,
+  xEnd: 7.2,
   get length(): number {
     return this.xEnd - this.xStart;
   },
@@ -55,45 +122,6 @@ export const POWERTRAIN_SHAFT = {
   /** Constant visual angular speed representing 3000 rpm (50 Hz) grid synchronization [rad/s] */
   syncAngularSpeedRadPerSec: 5.5,
 } as const;
-
-/**
- * Map a temperature T_K [K] between ambient T1 (288.15 K) and max TIT (1700 K)
- * to an RGB hex color string on a cold-blue -> cyan -> yellow -> orange -> red scale.
- */
-export function temperatureToHexColor(T_K: number): string {
-  const minT = DEFAULT_PARAMETERS.T1_K;
-  const maxT = SLIDER_BOUNDS.T3_K.max;
-  const u = Math.max(0, Math.min(1, (T_K - minT) / (maxT - minT)));
-
-  let r = 0;
-  let g = 0;
-  let b = 0;
-
-  if (u < 0.25) {
-    const k = u / 0.25;
-    r = Math.round(30 + k * 10);
-    g = Math.round(130 + k * 90);
-    b = Math.round(245 - k * 20);
-  } else if (u < 0.5) {
-    const k = (u - 0.25) / 0.25;
-    r = Math.round(40 + k * 205);
-    g = Math.round(220 - k * 20);
-    b = Math.round(225 - k * 175);
-  } else if (u < 0.75) {
-    const k = (u - 0.5) / 0.25;
-    r = Math.round(245 + k * 10);
-    g = Math.round(200 - k * 90);
-    b = Math.round(50 - k * 20);
-  } else {
-    const k = (u - 0.75) / 0.25;
-    r = 255;
-    g = Math.round(110 - k * 65);
-    b = Math.round(30 - k * 10);
-  }
-
-  const toHex = (n: number) => n.toString(16).padStart(2, '0');
-  return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
-}
 
 export interface LegendTick {
   fraction: number;
@@ -125,6 +153,8 @@ export function getTemperatureLegendTicks(): LegendTick[] {
 export interface PipeAnimationSegment {
   id: string;
   loop: 'gas' | 'steam';
+  service: PipeServiceType;
+  serviceColorHex: string;
   inletStateId: StatePointId;
   outletStateId: StatePointId;
   inletT_K: number;
@@ -181,6 +211,13 @@ function classifyParticleStyle(
   return 'gas';
 }
 
+function classifyPipeService(stateId: StatePointId): PipeServiceType {
+  if (stateId === 1 || stateId === 2) return 'air';
+  if (stateId === 3 || stateId === 4 || stateId === 5) return 'flue-gas';
+  if (stateId === 8 || stateId === 9) return 'steam';
+  return 'water';
+}
+
 /**
  * Compute all 3D scene animation parameters strictly from CombinedCycleResult.
  */
@@ -217,7 +254,7 @@ export function buildSceneAnimationParams(
     Math.min(1, (T5_K - parameters.T1_K) / (650 - parameters.T1_K)),
   );
   const stackPlume: StackPlumeParams = {
-    stackTopPosition: [0.0, 3.85, -3.3],
+    stackTopPosition: [0.0, 4.45, -3.5],
     T5_K,
     normalizedStackTemp,
     riseSpeed: active ? 0.35 + 0.85 * normalizedStackTemp : 0,
@@ -234,7 +271,7 @@ export function buildSceneAnimationParams(
       ? (states[8].mDot_kgs / DEFAULT_STEAM_MDOT_KGS) * 0.48
       : 0;
 
-  // 5. Pipe definitions with inlet -> outlet temperature gradients
+  // 5. Pipe definitions with inlet -> outlet temperature gradients & service classification
   const rawPipes: Array<{
     id: string;
     loop: 'gas' | 'steam';
@@ -250,9 +287,9 @@ export function buildSceneAnimationParams(
       outletStateId: 1,
       streamStateId: 1,
       waypoints: [
-        [-8.8, 0.8, -1.0],
-        [-7.6, 0.8, -1.0],
-        [-6.6, 0.8, -1.0],
+        [-9.0, 0.85, -1.0],
+        [-7.8, 0.85, -1.0],
+        [-6.8, 0.85, -1.0],
       ],
     },
     {
@@ -262,9 +299,9 @@ export function buildSceneAnimationParams(
       outletStateId: 2,
       streamStateId: 2,
       waypoints: [
-        [-6.6, 0.8, -1.0],
-        [-5.6, 2.35, -1.0],
-        [-4.4, 2.35, -1.0],
+        [-6.1, 1.1, -1.0],
+        [-5.4, 2.35, -1.0],
+        [-4.5, 2.35, -1.0],
       ],
     },
     {
@@ -274,9 +311,9 @@ export function buildSceneAnimationParams(
       outletStateId: 3,
       streamStateId: 3,
       waypoints: [
-        [-4.4, 2.35, -1.0],
-        [-3.2, 2.35, -1.0],
-        [-2.2, 0.8, -1.0],
+        [-4.5, 2.35, -1.0],
+        [-3.4, 2.35, -1.0],
+        [-2.7, 1.1, -1.0],
       ],
     },
     {
@@ -286,9 +323,9 @@ export function buildSceneAnimationParams(
       outletStateId: 4,
       streamStateId: 4,
       waypoints: [
-        [-2.2, 0.8, -1.0],
-        [-1.2, 0.9, -2.3],
-        [0.0, 1.0, -3.3],
+        [-1.5, 0.85, -1.0],
+        [-0.8, 1.1, -2.3],
+        [0.0, 1.2, -3.5],
       ],
     },
     {
@@ -298,9 +335,9 @@ export function buildSceneAnimationParams(
       outletStateId: 5,
       streamStateId: 5,
       waypoints: [
-        [0.0, 1.8, -3.3],
-        [0.0, 2.9, -3.3],
-        [0.0, 3.85, -3.3],
+        [0.0, 2.2, -3.5],
+        [0.0, 3.4, -3.5],
+        [0.0, 4.45, -3.5],
       ],
     },
     {
@@ -310,9 +347,9 @@ export function buildSceneAnimationParams(
       outletStateId: 8,
       streamStateId: 8,
       waypoints: [
-        [0.0, 2.2, -3.3],
-        [1.4, 1.6, -2.1],
-        [2.4, 0.8, -1.0],
+        [0.0, 2.5, -3.5],
+        [1.4, 1.85, -2.2],
+        [2.4, 0.85, -1.0],
       ],
     },
     {
@@ -322,9 +359,9 @@ export function buildSceneAnimationParams(
       outletStateId: 9,
       streamStateId: 9,
       waypoints: [
-        [2.4, 0.8, -1.0],
-        [2.4, 0.45, 0.6],
-        [2.4, 0.15, 2.1],
+        [2.4, 0.85, -1.0],
+        [2.4, 0.5, 0.6],
+        [2.4, 0.25, 2.2],
       ],
     },
     {
@@ -334,9 +371,9 @@ export function buildSceneAnimationParams(
       outletStateId: 6,
       streamStateId: 6,
       waypoints: [
-        [2.4, 0.15, 2.1],
-        [0.8, 0.15, 2.1],
-        [-0.8, 0.15, 2.1],
+        [2.4, 0.25, 2.2],
+        [0.7, 0.25, 2.2],
+        [-1.0, 0.25, 2.2],
       ],
     },
     {
@@ -346,9 +383,9 @@ export function buildSceneAnimationParams(
       outletStateId: 7,
       streamStateId: 7,
       waypoints: [
-        [-0.8, 0.15, 2.1],
-        [-0.5, 0.4, -0.6],
-        [0.0, 0.7, -3.3],
+        [-1.0, 0.25, 2.2],
+        [-0.6, 0.55, -0.6],
+        [0.0, 0.85, -3.5],
       ],
     },
   ];
@@ -357,10 +394,13 @@ export function buildSceneAnimationParams(
     const inState = states[p.inletStateId];
     const outState = states[p.outletStateId];
     const streamState = states[p.streamStateId];
+    const service = classifyPipeService(p.streamStateId);
 
     return {
       id: p.id,
       loop: p.loop,
+      service,
+      serviceColorHex: PIPE_SERVICE_COLORS[service],
       inletStateId: p.inletStateId,
       outletStateId: p.outletStateId,
       inletT_K: inState.T_K,

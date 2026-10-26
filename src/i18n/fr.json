@@ -15,7 +15,21 @@
     "tempLegend": "Échelle de température des conduites (Froid → Chaud)",
     "qualityLabel": "Graphismes",
     "qualityHigh": "Élevés",
-    "qualityLow": "Bas"
+    "qualityLow": "Bas",
+    "pipeColorModeLabel": "Couleur conduites",
+    "serviceColors": "Service (Fluide)",
+    "temperatureColors": "Température",
+    "serviceLegend": {
+      "air": "Air comprimé",
+      "flueGas": "Gaz d'échappement chauds",
+      "steam": "Vapeur vive / humide",
+      "water": "Eau alimentaire / Condensat"
+    },
+    "sceneryOn": "Décor : Activé",
+    "sceneryOff": "Décor : Masqué",
+    "showcaseEnter": "Mode vitrine",
+    "showcaseExit": "Quitter vitrine",
+    "backToOverview": "Vue d'ensemble"
   },
   "sliders": {
     "title": "Paramètres de fonctionnement",

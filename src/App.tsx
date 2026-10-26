@@ -15,11 +15,25 @@ import {
 export const App: React.FC = () => {
   const { lang, setLang, t } = useLanguage();
 
+  const initialParams = useMemo(
+    () =>
+      typeof window !== 'undefined'
+        ? new URLSearchParams(window.location.search)
+        : new URLSearchParams(),
+    [],
+  );
+
   const [T3_K, setT3_K] = useState<number>(DEFAULT_PARAMETERS.T3_K);
   const [rp, setRp] = useState<number>(DEFAULT_PARAMETERS.rp);
-  const [selectedComponent, setSelectedComponent] = useState<ComponentId>('gasTurbine');
+  const [selectedComponent, setSelectedComponent] = useState<ComponentId>(() => {
+    const focusParam = initialParams.get('focus') as ComponentId | null;
+    return focusParam ?? 'gasTurbine';
+  });
   const [flowPlaying, setFlowPlaying] = useState<boolean>(true);
   const [sheetExpanded, setSheetExpanded] = useState<boolean>(false);
+  const [showcaseMode, setShowcaseMode] = useState<boolean>(
+    () => initialParams.get('showcase') === '1',
+  );
 
   const cycleResult = useMemo(
     () =>
@@ -34,7 +48,9 @@ export const App: React.FC = () => {
 
   const handleSelectComponent = (id: ComponentId) => {
     setSelectedComponent(id);
-    setSheetExpanded(true);
+    if (!showcaseMode) {
+      setSheetExpanded(true);
+    }
   };
 
   return (
@@ -68,7 +84,7 @@ export const App: React.FC = () => {
         </div>
       </header>
 
-      <main className="workspace-grid">
+      <main className={`workspace-grid ${showcaseMode ? 'workspace-showcase' : ''}`}>
         <div className="main-stage">
           <PlantScene3D
             result={cycleResult}
@@ -76,47 +92,55 @@ export const App: React.FC = () => {
             onSelectComponent={handleSelectComponent}
             flowPlaying={flowPlaying}
             onToggleFlow={() => setFlowPlaying((prev) => !prev)}
+            showcaseMode={showcaseMode}
+            onToggleShowcase={() => setShowcaseMode((prev) => !prev)}
           />
 
-          <div className="stage-bottom-grid">
-            <TsDiagram result={cycleResult} />
-            <ResultsPanel vm={vm} />
-          </div>
+          {!showcaseMode && (
+            <div className="stage-bottom-grid">
+              <TsDiagram result={cycleResult} />
+              <ResultsPanel vm={vm} />
+            </div>
+          )}
         </div>
 
-        <aside
-          className={`side-panel bottom-sheet ${sheetExpanded ? 'bottom-sheet-expanded' : ''}`}
-        >
-          <button
-            type="button"
-            className="bottom-sheet-handle"
-            onClick={() => setSheetExpanded((prev) => !prev)}
-            aria-expanded={sheetExpanded}
-            aria-label={t.components.selectedTitle}
+        {!showcaseMode && (
+          <aside
+            className={`side-panel bottom-sheet ${sheetExpanded ? 'bottom-sheet-expanded' : ''}`}
           >
-            <span className="sheet-grabber" />
-            <span className="sheet-title">{t.components[selectedComponent].name}</span>
-          </button>
+            <button
+              type="button"
+              className="bottom-sheet-handle"
+              onClick={() => setSheetExpanded((prev) => !prev)}
+              aria-expanded={sheetExpanded}
+              aria-label={t.components.selectedTitle}
+            >
+              <span className="sheet-grabber" />
+              <span className="sheet-title">{t.components[selectedComponent].name}</span>
+            </button>
 
-          <div className="side-panel-scroll">
-            <SliderPanel
-              result={cycleResult}
-              vm={vm}
-              onChangeT3={setT3_K}
-              onChangeRp={setRp}
-            />
-            <ComponentInspector
-              selectedComponent={selectedComponent}
-              result={cycleResult}
-              vm={vm}
-            />
-          </div>
-        </aside>
+            <div className="side-panel-scroll">
+              <SliderPanel
+                result={cycleResult}
+                vm={vm}
+                onChangeT3={setT3_K}
+                onChangeRp={setRp}
+              />
+              <ComponentInspector
+                selectedComponent={selectedComponent}
+                result={cycleResult}
+                vm={vm}
+              />
+            </div>
+          </aside>
+        )}
       </main>
 
-      <footer className="app-footer">
-        <p>{t.disclaimer}</p>
-      </footer>
+      {!showcaseMode && (
+        <footer className="app-footer">
+          <p>{t.disclaimer}</p>
+        </footer>
+      )}
     </div>
   );
 };
