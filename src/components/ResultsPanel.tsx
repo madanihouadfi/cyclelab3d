@@ -1,6 +1,7 @@
 import React from 'react';
 import { useLanguage } from '../i18n/LanguageContext';
 import type { CycleViewModel, StatePointId } from '../physics';
+import { temperatureToHexColor } from '../scene/animationParams';
 
 interface ResultsPanelProps {
   vm: CycleViewModel;
@@ -91,7 +92,7 @@ export const ResultsPanel: React.FC<ResultsPanelProps> = ({ vm }) => {
                   <td title={t.statePoints.labels[sp.idStr]}>
                     <span
                       className="state-dot"
-                      style={{ backgroundColor: sp.colorHex }}
+                      style={{ backgroundColor: temperatureToHexColor(Number(sp.T_K)) }}
                     />
                     {sp.idStr}
                   </td>

@@ -121,6 +121,12 @@ body {
   margin-bottom: 0.65rem;
 }
 
+.temp-legend-container {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
 .temp-legend {
   display: flex;
   align-items: center;
@@ -133,10 +139,29 @@ body {
 }
 
 .temp-gradient-bar {
-  width: 120px;
+  width: 140px;
   height: 10px;
   border-radius: 999px;
   background: linear-gradient(90deg, #1e82f5 0%, #28dce1 30%, #f5c832 65%, #ff2d14 100%);
+}
+
+.temp-ticks-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  font-size: 0.68rem;
+  color: #94a3b8;
+}
+
+.temp-tick-item {
+  display: inline-flex;
+  align-items: center;
+}
+
+.scene-controls-right {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
 }
 
 .flow-toggle-btn {

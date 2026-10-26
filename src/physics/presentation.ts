@@ -1,157 +1,6 @@
 import { PLANT_COMPONENTS, SLIDER_BOUNDS } from './constants';
 import { getWaterSaturationDome } from './steam';
-import type { CombinedCycleResult, ComponentId, StatePoint, StatePointId } from './types';
-
-/**
- * Map a temperature T_K [K] between 288 K (cold ambient/condenser) and 1700 K (max TIT)
- * to an RGB hex color string on a cold-blue -> cyan -> yellow -> orange -> red scale.
- */
-export function temperatureToHexColor(T_K: number): string {
-  const minT = 285;
-  const maxT = 1700;
-  const u = Math.max(0, Math.min(1, (T_K - minT) / (maxT - minT)));
-
-  let r = 0;
-  let g = 0;
-  let b = 0;
-
-  if (u < 0.25) {
-    const k = u / 0.25;
-    r = Math.round(30 + k * 10);
-    g = Math.round(130 + k * 90);
-    b = Math.round(245 - k * 20);
-  } else if (u < 0.5) {
-    const k = (u - 0.25) / 0.25;
-    r = Math.round(40 + k * 205);
-    g = Math.round(220 - k * 20);
-    b = Math.round(225 - k * 175);
-  } else if (u < 0.75) {
-    const k = (u - 0.5) / 0.25;
-    r = Math.round(245 + k * 10);
-    g = Math.round(200 - k * 90);
-    b = Math.round(50 - k * 20);
-  } else {
-    const k = (u - 0.75) / 0.25;
-    r = 255;
-    g = Math.round(110 - k * 65);
-    b = Math.round(30 - k * 10);
-  }
-
-  const toHex = (n: number) => n.toString(16).padStart(2, '0');
-  return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
-}
-
-export interface PipeSegmentData {
-  id: string;
-  statePointId: StatePointId;
-  fromComponent: ComponentId | 'inlet' | 'stack';
-  toComponent: ComponentId | 'stack';
-  start: [number, number, number];
-  end: [number, number, number];
-  colorHex: string;
-  T_K: number;
-  flowSpeed: number;
-}
-
-/**
- * Generate the 3D pipe segments and their live temperature colors from the physics result.
- */
-export function getPipeSegments(result: CombinedCycleResult): PipeSegmentData[] {
-  const { states } = result;
-  const baseSpeed = result.ok ? 1.0 : 0.35;
-
-  const rawSegments: Array<{
-    id: string;
-    statePointId: StatePointId;
-    fromComponent: ComponentId | 'inlet' | 'stack';
-    toComponent: ComponentId | 'stack';
-    start: [number, number, number];
-    end: [number, number, number];
-  }> = [
-    {
-      id: 'pipe-1-inlet',
-      statePointId: 1,
-      fromComponent: 'inlet',
-      toComponent: 'compressor',
-      start: [-8.6, 0.8, -1.5],
-      end: [-6.5, 0.8, -1.5],
-    },
-    {
-      id: 'pipe-2-comp-comb',
-      statePointId: 2,
-      fromComponent: 'compressor',
-      toComponent: 'combustor',
-      start: [-6.5, 0.8, -1.5],
-      end: [-3.5, 2.2, -1.5],
-    },
-    {
-      id: 'pipe-3-comb-gt',
-      statePointId: 3,
-      fromComponent: 'combustor',
-      toComponent: 'gasTurbine',
-      start: [-3.5, 2.2, -1.5],
-      end: [-0.5, 0.8, -1.5],
-    },
-    {
-      id: 'pipe-4-gt-hrsg',
-      statePointId: 4,
-      fromComponent: 'gasTurbine',
-      toComponent: 'hrsg',
-      start: [-0.5, 0.8, -1.5],
-      end: [2.8, 1.0, -1.5],
-    },
-    {
-      id: 'pipe-5-hrsg-stack',
-      statePointId: 5,
-      fromComponent: 'hrsg',
-      toComponent: 'stack',
-      start: [2.8, 3.0, -1.5],
-      end: [2.8, 4.6, -1.5],
-    },
-    {
-      id: 'pipe-8-hrsg-st',
-      statePointId: 8,
-      fromComponent: 'hrsg',
-      toComponent: 'steamTurbine',
-      start: [2.8, 1.5, -1.5],
-      end: [2.8, 0.8, 2.2],
-    },
-    {
-      id: 'pipe-9-st-cond',
-      statePointId: 9,
-      fromComponent: 'steamTurbine',
-      toComponent: 'condenser',
-      start: [2.8, 0.8, 2.2],
-      end: [6.0, 0.2, 2.2],
-    },
-    {
-      id: 'pipe-6-cond-pump',
-      statePointId: 6,
-      fromComponent: 'condenser',
-      toComponent: 'pump',
-      start: [6.0, 0.2, 2.2],
-      end: [6.0, 0.2, -0.2],
-    },
-    {
-      id: 'pipe-7-pump-hrsg',
-      statePointId: 7,
-      fromComponent: 'pump',
-      toComponent: 'hrsg',
-      start: [6.0, 0.2, -0.2],
-      end: [2.8, 0.6, -1.5],
-    },
-  ];
-
-  return rawSegments.map((seg) => {
-    const sp = states[seg.statePointId];
-    return {
-      ...seg,
-      T_K: sp.T_K,
-      colorHex: temperatureToHexColor(sp.T_K),
-      flowSpeed: baseSpeed,
-    };
-  });
-}
+import type { CombinedCycleResult, StatePoint, StatePointId } from './types';
 
 export interface FormattedStatePoint {
   id: StatePointId;
@@ -164,7 +13,6 @@ export interface FormattedStatePoint {
   s_kJkgK: string;
   mDot_kgs: string;
   quality: string;
-  colorHex: string;
 }
 
 export function formatStatePoint(sp: StatePoint): FormattedStatePoint {
@@ -179,7 +27,6 @@ export function formatStatePoint(sp: StatePoint): FormattedStatePoint {
     s_kJkgK: sp.s_kJkgK.toFixed(4),
     mDot_kgs: sp.mDot_kgs.toFixed(2),
     quality: sp.quality !== null ? sp.quality.toFixed(3) : '—',
-    colorHex: temperatureToHexColor(sp.T_K),
   };
 }
 
@@ -187,6 +34,7 @@ export interface TsPlotPoint {
   id: StatePointId;
   x: number;
   y: number;
+  T_K: number;
   formatted: FormattedStatePoint;
   cycle: 'brayton' | 'rankine';
 }
@@ -209,7 +57,7 @@ export interface TsDiagramViewModel {
 
 /**
  * Compute all SVG paths, axis ticks, and point coordinates for the T-s diagram
- * purely inside src/physics so the UI component has zero hardcoded numbers.
+ * purely from CombinedCycleResult.
  */
 export function buildTsDiagramViewModel(result: CombinedCycleResult): TsDiagramViewModel {
   const width = 580;
@@ -232,7 +80,9 @@ export function buildTsDiagramViewModel(result: CombinedCycleResult): TsDiagramV
 
   const domePts = getWaterSaturationDome();
   const domePath = domePts
-    .map((pt, i) => `${i === 0 ? 'M' : 'L'} ${mapX(pt.s_kJkgK).toFixed(1)} ${mapY(pt.T_K).toFixed(1)}`)
+    .map(
+      (pt, i) => `${i === 0 ? 'M' : 'L'} ${mapX(pt.s_kJkgK).toFixed(1)} ${mapY(pt.T_K).toFixed(1)}`,
+    )
     .join(' ');
 
   const { states, hrsg } = result;
@@ -245,7 +95,6 @@ export function buildTsDiagramViewModel(result: CombinedCycleResult): TsDiagramV
     `L ${mapX(states[1].s_kJkgK).toFixed(1)} ${mapY(states[1].T_K).toFixed(1)}`,
   ].join(' ');
 
-  // Rankine cycle path includes the saturated liquid and saturated vapor drum corners on the dome
   const rankineCoords: Array<{ s: number; T: number }> = [
     { s: states[6].s_kJkgK, T: states[6].T_K },
     { s: states[7].s_kJkgK, T: states[7].T_K },
@@ -266,6 +115,7 @@ export function buildTsDiagramViewModel(result: CombinedCycleResult): TsDiagramV
       id,
       x: Number(mapX(sp.s_kJkgK).toFixed(1)),
       y: Number(mapY(sp.T_K).toFixed(1)),
+      T_K: sp.T_K,
       formatted: formatStatePoint(sp),
       cycle: id <= 5 ? 'brayton' : 'rankine',
     };

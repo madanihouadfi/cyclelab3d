@@ -5,6 +5,7 @@ import {
   type CombinedCycleResult,
   type StatePointId,
 } from '../physics';
+import { temperatureToHexColor } from '../scene/animationParams';
 
 interface TsDiagramProps {
   result: CombinedCycleResult;
@@ -166,7 +167,7 @@ export const TsDiagram: React.FC<TsDiagramProps> = ({ result }) => {
                 cx={pt.x}
                 cy={pt.y}
                 r={isHovered ? 7 : 5}
-                fill={pt.formatted.colorHex}
+                fill={temperatureToHexColor(pt.T_K)}
                 stroke="#ffffff"
                 strokeWidth={isHovered ? 2.2 : 1.2}
               />

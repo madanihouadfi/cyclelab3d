@@ -40,6 +40,7 @@ Every French technical and thermodynamic term in `src/i18n/fr.json` is listed be
 | `components.condenser.name` | Surface Condenser | Condenseur par surface | Shell-and-tube water-cooled steam condenser. |
 | `components.pump.name` | Feedwater Pump | Pompe alimentaire | Boiler feedwater pump (*pompe alimentaire*). |
 | `components.generator.name` | Synchronous Electric Generator | Alternateur synchrone | *Alternateur synchrone* is preferred in French over *générateur*. |
+| `components.generator.shaftGridNote` | Shaft speed is fixed by the grid frequency | La vitesse d'arbre est fixée par la fréquence du réseau | *Vitesse d'arbre* = shaft speed; *fréquence du réseau* = grid frequency (50 Hz / 3000 rpm). |
 | `statePoints.fluids.air` | Air | Air | Working fluid at states 1–2. |
 | `statePoints.fluids.gas` | Flue Gas | Gaz brûlés | Also called *gaz de combustion* or *fumées* at states 3–5. |
 | `statePoints.fluids.water` | Liquid Water | Eau liquide | Subcooled/saturated liquid water at states 6–7. |

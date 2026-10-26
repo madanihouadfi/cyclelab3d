@@ -12,7 +12,10 @@
     "pause": "Pause écoulement",
     "running": "Écoulement actif",
     "paused": "Écoulement en pause",
-    "tempLegend": "Échelle de température des conduites (Froid → Chaud)"
+    "tempLegend": "Échelle de température des conduites (Froid → Chaud)",
+    "qualityLabel": "Graphismes",
+    "qualityHigh": "Élevés",
+    "qualityLow": "Bas"
   },
   "sliders": {
     "title": "Paramètres de fonctionnement",
@@ -83,7 +86,8 @@
     },
     "generator": {
       "name": "Alternateur synchrone",
-      "role": "Convertit la puissance mécanique nette des arbres TAG et TAV en puissance électrique."
+      "role": "Convertit la puissance mécanique nette des arbres TAG et TAV en puissance électrique.",
+      "shaftGridNote": "La vitesse d'arbre est fixée par la fréquence du réseau"
     }
   },
   "statePoints": {

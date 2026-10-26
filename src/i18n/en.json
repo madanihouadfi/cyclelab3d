@@ -12,7 +12,10 @@
     "pause": "Pause Flow",
     "running": "Flow Active",
     "paused": "Flow Paused",
-    "tempLegend": "Pipe Temperature Scale (Cold → Hot)"
+    "tempLegend": "Pipe Temperature Scale (Cold → Hot)",
+    "qualityLabel": "Graphics",
+    "qualityHigh": "High",
+    "qualityLow": "Low"
   },
   "sliders": {
     "title": "Operating Parameters",
@@ -83,7 +86,8 @@
     },
     "generator": {
       "name": "Synchronous Electric Generator",
-      "role": "Couples net gas turbine and steam turbine shaft power into electrical output."
+      "role": "Couples net gas turbine and steam turbine shaft power into electrical output.",
+      "shaftGridNote": "Shaft speed is fixed by the grid frequency"
     }
   },
   "statePoints": {

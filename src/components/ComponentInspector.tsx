@@ -40,6 +40,9 @@ export const ComponentInspector: React.FC<ComponentInspectorProps> = ({
         <span className="inspector-badge">{t.components.selectedTitle}</span>
         <h2 className="panel-heading">{t.components[selectedComponent].name}</h2>
         <p className="inspector-role">{t.components[selectedComponent].role}</p>
+        {selectedComponent === 'generator' && (
+          <p className="law-note">{t.components.generator.shaftGridNote}</p>
+        )}
       </div>
 
       <div className="inlet-outlet-grid">
