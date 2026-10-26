@@ -1,0 +1,197 @@
+{
+  "appTitle": "CycleLab 3D",
+  "appSubtitle": "Combined Cycle Power Plant Simulator (Brayton + Rankine)",
+  "disclaimer": "Simplified educational model, not for plant design.",
+  "langSwitch": {
+    "label": "Language",
+    "en": "EN",
+    "fr": "FR"
+  },
+  "animation": {
+    "play": "Play Flow",
+    "pause": "Pause Flow",
+    "running": "Flow Active",
+    "paused": "Flow Paused",
+    "tempLegend": "Pipe Temperature Scale (Cold → Hot)"
+  },
+  "sliders": {
+    "title": "Operating Parameters",
+    "titLabel": "Turbine Inlet Temperature (T3)",
+    "rpLabel": "Compressor Pressure Ratio (rp)",
+    "fixedParamsTitle": "Fixed Design Parameters",
+    "etaComp": "Compressor Isentropic Eff. (η_c)",
+    "etaGt": "Gas Turbine Isentropic Eff. (η_GT)",
+    "etaSt": "Steam Turbine Isentropic Eff. (η_ST)",
+    "etaPump": "Feedwater Pump Isentropic Eff. (η_p)",
+    "steamPress": "Live Steam Pressure (p8)",
+    "steamTemp": "Live Steam Temperature (T8)",
+    "condPress": "Condenser Pressure (p6 = p9)",
+    "pinchPoint": "HRSG Pinch Point (ΔT_pinch)",
+    "airMassFlow": "Air Mass Flow Rate (ṁ_air)"
+  },
+  "results": {
+    "title": "Plant Performance Summary",
+    "gtPower": "Gas Turbine Net Power",
+    "stPower": "Steam Cycle Net Power",
+    "netPower": "Combined Cycle Net Power",
+    "gtEfficiency": "Brayton (GT) Thermal Efficiency",
+    "stEfficiency": "Rankine (ST) Thermal Efficiency",
+    "hrsgEfficiency": "HRSG Heat Recovery Effectiveness",
+    "ccEfficiency": "Combined Cycle Efficiency",
+    "fuelMassFlow": "Fuel Mass Flow Rate",
+    "steamMassFlow": "Steam Mass Flow Rate",
+    "heatInput": "Fuel Heat Input (Q_in)",
+    "pinchTempGas": "HRSG Gas Evaporator Exit (T_pinch,g)",
+    "satTempSteam": "HRSG Drum Saturation Temp (T_sat)"
+  },
+  "components": {
+    "selectPrompt": "Click any 3D equipment to inspect its governing laws, live equations, and inlet/outlet state points.",
+    "selectedTitle": "Equipment Inspector",
+    "inletState": "Inlet State",
+    "outletState": "Outlet State",
+    "lawsHeader": "Governing Thermodynamic Laws",
+    "liveCalculation": "Live Calculation",
+    "compressor": {
+      "name": "Axial Air Compressor",
+      "role": "Compresses ambient air from p1 to p2 before combustion."
+    },
+    "combustor": {
+      "name": "Combustion Chamber",
+      "role": "Adds chemical heat from fuel at nearly constant pressure to reach T3."
+    },
+    "gasTurbine": {
+      "name": "Gas Turbine",
+      "role": "Expands hot combustion gas from p3 to p4 to drive the compressor and generator."
+    },
+    "hrsg": {
+      "name": "Heat Recovery Steam Generator (HRSG)",
+      "role": "Transfers exhaust heat from gas (4→5) to water/steam (7→8) subject to the pinch point constraint."
+    },
+    "steamTurbine": {
+      "name": "Steam Turbine",
+      "role": "Expands superheated steam from p8 to condenser pressure p9 to produce Rankine shaft work."
+    },
+    "condenser": {
+      "name": "Surface Condenser",
+      "role": "Condenses wet exhaust steam from state 9 to saturated liquid at state 6."
+    },
+    "pump": {
+      "name": "Feedwater Pump",
+      "role": "Pressurizes saturated liquid water from condenser pressure p6 to boiler pressure p7."
+    },
+    "generator": {
+      "name": "Synchronous Electric Generator",
+      "role": "Couples net gas turbine and steam turbine shaft power into electrical output."
+    }
+  },
+  "statePoints": {
+    "title": "Cycle State Points (1–9)",
+    "point": "State",
+    "fluid": "Fluid",
+    "tempK": "T (K)",
+    "tempC": "T (°C)",
+    "pressure": "p (kPa)",
+    "enthalpy": "h (kJ/kg)",
+    "entropy": "s (kJ/kg·K)",
+    "massFlow": "ṁ (kg/s)",
+    "quality": "x (-)",
+    "fluids": {
+      "air": "Air",
+      "gas": "Flue Gas",
+      "water": "Liquid Water",
+      "steam": "Steam"
+    },
+    "labels": {
+      "1": "1 — Compressor Air Inlet",
+      "2": "2 — Compressor Outlet",
+      "3": "3 — Gas Turbine Inlet (TIT)",
+      "4": "4 — Gas Turbine Exhaust / HRSG Gas Inlet",
+      "5": "5 — HRSG Stack Exhaust",
+      "6": "6 — Condenser Saturated Liquid Outlet",
+      "7": "7 — Feedwater Pump Outlet / HRSG Water Inlet",
+      "8": "8 — HRSG Superheated Steam Outlet",
+      "9": "9 — Steam Turbine Exhaust"
+    }
+  },
+  "laws": {
+    "law1": {
+      "title": "1. First Law of Thermodynamics (Steady Flow)",
+      "formula": "Q − W = ṁ · (h_out − h_in)",
+      "explanation": "Energy conservation for an open control volume in steady flow with negligible kinetic and potential energy changes."
+    },
+    "law2": {
+      "title": "2. Second Law & Isentropic Efficiency",
+      "formula": "η_t = (h_in − h_out) / (h_in − h_out,s) ; η_c = (h_out,s − h_in) / (h_out − h_in)",
+      "explanation": "Quantifies irreversibilities (entropy generation) in adiabatic turbines, compressors, and pumps relative to an ideal isentropic process."
+    },
+    "law3": {
+      "title": "3. Ideal Gas Equation of State",
+      "formula": "p · v = R · T ; cp − cv = R ; k = cp / cv",
+      "explanation": "Relates pressure, specific volume, and absolute temperature for air and combustion gases with constant specific heats."
+    },
+    "law4": {
+      "title": "4. Isentropic Relations for Ideal Gases",
+      "formula": "T_out,s / T_in = (p_out / p_in)^((k − 1) / k)",
+      "explanation": "Connects temperature ratio and pressure ratio along a reversible adiabatic (constant entropy) path for an ideal gas."
+    },
+    "law5": {
+      "title": "5. Ideal Brayton Cycle Efficiency",
+      "formula": "η_Brayton,ideal = 1 − 1 / r_p^((k − 1) / k)",
+      "explanation": "Theoretical thermal efficiency of a cold-air-standard Brayton cycle as a function of compressor pressure ratio r_p."
+    },
+    "law6": {
+      "title": "6. Rankine Cycle Thermal Efficiency",
+      "formula": "η_Rankine = (w_t − w_p) / q_in",
+      "explanation": "Ratio of net specific steam cycle work (turbine minus pump) to specific heat absorbed in the steam generator."
+    },
+    "law7": {
+      "title": "7. HRSG Energy Balance & Pinch Point",
+      "formula": "ṁ_g · cp_g · ΔT_g = ṁ_s · Δh_s ; ΔT_pinch = T_g,evap − T_sat",
+      "explanation": "Couples the gas and steam cycles via first-law heat recovery while enforcing the minimum temperature approach (pinch point) at the evaporator inlet."
+    },
+    "law8": {
+      "title": "8. Combustion Heat Input",
+      "formula": "Q_in = ṁ_f · LHV · η_comb",
+      "explanation": "Relates thermal power released into the working gas to fuel mass flow rate, lower heating value (LHV), and combustor efficiency."
+    },
+    "law9": {
+      "title": "9. Combined Cycle Thermal Efficiency",
+      "formula": "η_cc = η_GT + (1 − η_GT) · η_HRSG · η_ST",
+      "explanation": "Overall plant efficiency combining the topping Brayton cycle (η_GT), HRSG heat recovery fraction (η_HRSG), and bottoming Rankine cycle (η_ST)."
+    },
+    "law10": {
+      "title": "10. Conservation of Mass (Continuity)",
+      "formula": "Σ ṁ_in = Σ ṁ_out",
+      "explanation": "At steady state, the total mass flow rate entering any control volume equals the total mass flow rate leaving it."
+    }
+  },
+  "diagram": {
+    "title": "Temperature–Entropy (T–s) Diagram",
+    "braytonLegend": "Brayton Gas Cycle (1–5)",
+    "rankineLegend": "Rankine Steam Cycle (6–9)",
+    "satDomeLegend": "Water/Steam Saturation Dome",
+    "xAxis": "Specific Entropy s [kJ/(kg·K)]",
+    "yAxis": "Temperature T [K]",
+    "hoverHint": "Hover or tap a state point to inspect exact thermodynamic coordinates."
+  },
+  "errors": {
+    "title": "Thermodynamic Operating Limit Reached",
+    "PINCH_POINT_VIOLATION": "HRSG Pinch Point Violation: Gas turbine exhaust temperature (T4) is too low to maintain the required 15 K pinch temperature difference and superheat steam to 450 °C. Increase Turbine Inlet Temperature (T3) or reduce Pressure Ratio (rp).",
+    "GAS_EXHAUST_BELOW_STEAM_TEMP": "Temperature Crossing in HRSG Superheater: Gas turbine exhaust temperature (T4) is below the required live steam temperature (T8 = 723.15 K + 15 K approach). Increase T3 or lower rp.",
+    "NEGATIVE_COMBUSTION_HEAT": "Invalid Combustor State: Compressor outlet temperature (T2) exceeds or equals Turbine Inlet Temperature (T3). Increase T3 or reduce rp.",
+    "NEGATIVE_GT_WORK": "Negative Net Gas Turbine Output: Compressor work exceeds turbine expansion work at these conditions.",
+    "STACK_TEMP_BELOW_FEEDWATER": "HRSG Acid/Feedwater Temperature Crossing: Stack gas temperature (T5) dropped below incoming feedwater temperature (T7)."
+  },
+  "units": {
+    "K": "K",
+    "C": "°C",
+    "kPa": "kPa",
+    "MPa": "MPa",
+    "kJkg": "kJ/kg",
+    "kJkgK": "kJ/(kg·K)",
+    "MW": "MW",
+    "kgs": "kg/s",
+    "percent": "%",
+    "ratio": "-"
+  }
+}

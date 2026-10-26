@@ -1,0 +1,197 @@
+{
+  "appTitle": "CycleLab 3D",
+  "appSubtitle": "Simulateur de centrale à cycle combiné (Brayton + Rankine)",
+  "disclaimer": "Modèle pédagogique simplifié, non destiné au dimensionnement industriel.",
+  "langSwitch": {
+    "label": "Langue",
+    "en": "EN",
+    "fr": "FR"
+  },
+  "animation": {
+    "play": "Animer l'écoulement",
+    "pause": "Pause écoulement",
+    "running": "Écoulement actif",
+    "paused": "Écoulement en pause",
+    "tempLegend": "Échelle de température des conduites (Froid → Chaud)"
+  },
+  "sliders": {
+    "title": "Paramètres de fonctionnement",
+    "titLabel": "Température d'entrée turbine (T3)",
+    "rpLabel": "Taux de compression (rp)",
+    "fixedParamsTitle": "Paramètres nominaux fixes",
+    "etaComp": "Rendement isentropique compresseur (η_c)",
+    "etaGt": "Rendement isentropique turbine à gaz (η_GT)",
+    "etaSt": "Rendement isentropique turbine à vapeur (η_ST)",
+    "etaPump": "Rendement isentropique pompe alimentaire (η_p)",
+    "steamPress": "Pression de vapeur vive (p8)",
+    "steamTemp": "Température de vapeur vive (T8)",
+    "condPress": "Pression au condenseur (p6 = p9)",
+    "pinchPoint": "Pincement CRV / HRSG (ΔT_pinch)",
+    "airMassFlow": "Débit massique d'air (ṁ_air)"
+  },
+  "results": {
+    "title": "Bilan énergétique de la centrale",
+    "gtPower": "Puissance nette turbine à gaz",
+    "stPower": "Puissance nette cycle vapeur",
+    "netPower": "Puissance nette du cycle combiné",
+    "gtEfficiency": "Rendement thermique Brayton (TAG)",
+    "stEfficiency": "Rendement thermique Rankine (TAV)",
+    "hrsgEfficiency": "Efficacité de récupération (CRV)",
+    "ccEfficiency": "Rendement global du cycle combiné",
+    "fuelMassFlow": "Débit massique de combustible",
+    "steamMassFlow": "Débit massique de vapeur",
+    "heatInput": "Puissance thermique apportée (Q_in)",
+    "pinchTempGas": "Température gaz au pincement (T_pinch,g)",
+    "satTempSteam": "Température de saturation ballon (T_sat)"
+  },
+  "components": {
+    "selectPrompt": "Cliquez sur un équipement 3D pour afficher ses lois thermodynamiques, ses formules en direct et ses états d'entrée/sortie.",
+    "selectedTitle": "Inspecteur d'équipement",
+    "inletState": "État d'entrée",
+    "outletState": "État de sortie",
+    "lawsHeader": "Lois thermodynamiques applicables",
+    "liveCalculation": "Calcul en temps réel",
+    "compressor": {
+      "name": "Compresseur axial d'air",
+      "role": "Comprime l'air ambiant de p1 à p2 avant la chambre de combustion."
+    },
+    "combustor": {
+      "name": "Chambre de combustion",
+      "role": "Apporte la chaleur chimique du combustible à pression quasi constante jusqu'à T3."
+    },
+    "gasTurbine": {
+      "name": "Turbine à gaz (TAG)",
+      "role": "Détend les gaz de combustion de p3 à p4 pour entraîner le compresseur et l'alternateur."
+    },
+    "hrsg": {
+      "name": "Chaudière de récupération (CRV / HRSG)",
+      "role": "Transfère la chaleur d'échappement des gaz (4→5) à l'eau/vapeur (7→8) sous contrainte du point de pincement."
+    },
+    "steamTurbine": {
+      "name": "Turbine à vapeur (TAV)",
+      "role": "Détend la vapeur surchauffée de p8 jusqu'à la pression du condenseur p9 pour produire le travail moteur de Rankine."
+    },
+    "condenser": {
+      "name": "Condenseur par surface",
+      "role": "Condense la vapeur humide d'échappement (état 9) en liquide saturé (état 6)."
+    },
+    "pump": {
+      "name": "Pompe alimentaire",
+      "role": "Élève la pression de l'eau liquide saturée de la pression du condenseur p6 à la pression chaudière p7."
+    },
+    "generator": {
+      "name": "Alternateur synchrone",
+      "role": "Convertit la puissance mécanique nette des arbres TAG et TAV en puissance électrique."
+    }
+  },
+  "statePoints": {
+    "title": "Points d'état du cycle (1–9)",
+    "point": "État",
+    "fluid": "Fluide",
+    "tempK": "T (K)",
+    "tempC": "T (°C)",
+    "pressure": "p (kPa)",
+    "enthalpy": "h (kJ/kg)",
+    "entropy": "s (kJ/kg·K)",
+    "massFlow": "ṁ (kg/s)",
+    "quality": "x (-)",
+    "fluids": {
+      "air": "Air",
+      "gas": "Gaz brûlés",
+      "water": "Eau liquide",
+      "steam": "Vapeur d'eau"
+    },
+    "labels": {
+      "1": "1 — Admission d'air compresseur",
+      "2": "2 — Refoulement compresseur",
+      "3": "3 — Entrée turbine à gaz (TET / TIT)",
+      "4": "4 — Échappement TAG / Entrée gaz CRV",
+      "5": "5 — Cheminée d'échappement CRV",
+      "6": "6 — Sortie liquide saturé du condenseur",
+      "7": "7 — Refoulement pompe alimentaire / Entrée eau CRV",
+      "8": "8 — Sortie vapeur surchauffée CRV",
+      "9": "9 — Échappement turbine à vapeur"
+    }
+  },
+  "laws": {
+    "law1": {
+      "title": "1. Premier principe en régime permanent (système ouvert)",
+      "formula": "Q − W = ṁ · (h_out − h_in)",
+      "explanation": "Conservation de l'énergie pour un volume de contrôle en écoulement stationnaire en négligeant les variations d'énergie cinétique et potentielle."
+    },
+    "law2": {
+      "title": "2. Second principe et rendement isentropique",
+      "formula": "η_t = (h_in − h_out) / (h_in − h_out,s) ; η_c = (h_out,s − h_in) / (h_out − h_in)",
+      "explanation": "Mesure les irréversibilités (création d'entropie) dans les turbines, compresseurs et pompes adiabatiques par rapport à une transformation isentropique idéale."
+    },
+    "law3": {
+      "title": "3. Loi des gaz parfaits",
+      "formula": "p · v = R · T ; cp − cv = R ; k = cp / cv",
+      "explanation": "Relie la pression, le volume massique et la température absolue pour l'air et les gaz de combustion à capacités thermiques massiques constantes."
+    },
+    "law4": {
+      "title": "4. Relations isentropiques des gaz parfaits",
+      "formula": "T_out,s / T_in = (p_out / p_in)^((k − 1) / k)",
+      "explanation": "Relie le rapport de température au rapport de pression lors d'une évolution adiabatique réversible (entropie constante) d'un gaz parfait."
+    },
+    "law5": {
+      "title": "5. Rendement théorique du cycle de Brayton",
+      "formula": "η_Brayton,ideal = 1 − 1 / r_p^((k − 1) / k)",
+      "explanation": "Rendement thermique idéal d'un cycle de Brayton standard à air froid en fonction du taux de compression r_p."
+    },
+    "law6": {
+      "title": "6. Rendement thermique du cycle de Rankine",
+      "formula": "η_Rankine = (w_t − w_p) / q_in",
+      "explanation": "Rapport entre le travail massique net du cycle vapeur (turbine moins pompe) et la chaleur massique reçue dans le générateur de vapeur."
+    },
+    "law7": {
+      "title": "7. Bilan énergétique de la CRV et point de pincement",
+      "formula": "ṁ_g · cp_g · ΔT_g = ṁ_s · Δh_s ; ΔT_pinch = T_g,evap − T_sat",
+      "explanation": "Couple les cycles gaz et vapeur par récupération thermique tout en respectant l'écart minimal de température (pincement) à l'entrée de l'évaporateur."
+    },
+    "law8": {
+      "title": "8. Apport thermique de combustion",
+      "formula": "Q_in = ṁ_f · LHV · η_comb",
+      "explanation": "Relie la puissance thermique cédée au fluide moteur au débit massique de combustible, au pouvoir calorifique inférieur (PCI / LHV) et au rendement de combustion."
+    },
+    "law9": {
+      "title": "9. Rendement thermique du cycle combiné",
+      "formula": "η_cc = η_GT + (1 − η_GT) · η_HRSG · η_ST",
+      "explanation": "Rendement global de la centrale combinant le cycle haut de Brayton (η_GT), l'efficacité de récupération de la CRV (η_HRSG) et le cycle bas de Rankine (η_ST)."
+    },
+    "law10": {
+      "title": "10. Conservation de la masse (équation de continuité)",
+      "formula": "Σ ṁ_in = Σ ṁ_out",
+      "explanation": "En régime permanent, la somme des débits massiques entrant dans un volume de contrôle est égale à la somme des débits massiques sortants."
+    }
+  },
+  "diagram": {
+    "title": "Diagramme Température–Entropie (T–s)",
+    "braytonLegend": "Cycle gaz de Brayton (1–5)",
+    "rankineLegend": "Cycle vapeur de Rankine (6–9)",
+    "satDomeLegend": "Cloche de saturation eau/vapeur",
+    "xAxis": "Entropie massique s [kJ/(kg·K)]",
+    "yAxis": "Température T [K]",
+    "hoverHint": "Survolez ou touchez un point d'état pour lire ses coordonnées thermodynamiques exactes."
+  },
+  "errors": {
+    "title": "Limite thermodynamique de fonctionnement atteinte",
+    "PINCH_POINT_VIOLATION": "Violation du point de pincement CRV : la température d'échappement de la turbine à gaz (T4) est trop basse pour maintenir le pincement requis de 15 K et surchauffer la vapeur à 450 °C. Augmentez T3 ou réduisez le taux de compression (rp).",
+    "GAS_EXHAUST_BELOW_STEAM_TEMP": "Croisement de température au surchauffeur CRV : la température d'échappement TAG (T4) est inférieure à la température de vapeur vive requise (T8 = 723,15 K + approche de 15 K). Augmentez T3 ou réduisez rp.",
+    "NEGATIVE_COMBUSTION_HEAT": "État de combustion invalide : la température de refoulement du compresseur (T2) dépasse ou égale la température d'entrée turbine (T3). Augmentez T3 ou réduisez rp.",
+    "NEGATIVE_GT_WORK": "Puissance nette TAG négative : le travail de compression dépasse le travail de détente de la turbine dans ces conditions.",
+    "STACK_TEMP_BELOW_FEEDWATER": "Croisement de température à l'économiseur CRV : la température des fumées à la cheminée (T5) est inférieure à la température d'eau alimentaire (T7)."
+  },
+  "units": {
+    "K": "K",
+    "C": "°C",
+    "kPa": "kPa",
+    "MPa": "MPa",
+    "kJkg": "kJ/kg",
+    "kJkgK": "kJ/(kg·K)",
+    "MW": "MW",
+    "kgs": "kg/s",
+    "percent": "%",
+    "ratio": "-"
+  }
+}
