@@ -4,17 +4,17 @@ If this file and HANDOFF.md disagree, **this file wins**.
 
 ## Current state
 
-- **Current module:** M0 Project setup (Done)
-- **Next module:** M1 Gas side physics (Brayton)
-- **Overall:** 1/10 modules done
+- **Current module:** M2 Steam side physics (Done)
+- **Next module:** M3 3D plant scene
+- **Overall:** 3/10 modules done
 
 ## Modules
 
 | Module | Name | Builder (tool + model) | Status | Tag | Notes |
 | --- | --- | --- | --- | --- | --- |
 | M0 | Project setup | Antigravity + Gemini 4 Argon | Done | v0.1-M0 | Vite + TS + React + Vitest + ESLint + EN/FR |
-| M1 | Gas side physics (Brayton) | Claude Code or Claude extension (Opus 5.5) | Not started | m1 | Critical |
-| M2 | Steam side physics (Rankine, HRSG, combined) | Claude Code or Claude extension (Opus 5.5) | Not started | m2 | Critical |
+| M1 | Gas side physics (Brayton) | Antigravity + Gemini 4 Argon | Done | v0.1-physics | Pure TS, <0.1% First-Law closure |
+| M2 | Steam side physics (Rankine, HRSG, combined) | Antigravity + Gemini 4 Argon | Done | v0.1-physics | iapws-if97 2.8.0 (<0.5% error), pinch detection |
 | M3 | 3D plant scene | Antigravity agent (Gemini) | Not started | m3 | |
 | M4 | Laws data and info panel | Antigravity agent (Gemini), physics text reviewed by Claude | Not started | m4 | Review French terms |
 | M5 | Sliders connected to physics | Claude Code (Opus 5.5) | Not started | m5 | Critical |
