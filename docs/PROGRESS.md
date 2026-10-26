@@ -4,9 +4,9 @@ If this file and HANDOFF.md disagree, **this file wins**.
 
 ## Current state
 
-- **Current module:** M7 Flow animation and colors (Done)
-- **Next module:** M8 Validation and full audit
-- **Overall:** 8/10 modules done
+- **Current module:** M8 Validation and full audit (Done)
+- **Next module:** M9 Polish, deploy, demo
+- **Overall:** 9/10 modules done
 
 ## Modules
 
@@ -20,7 +20,7 @@ If this file and HANDOFF.md disagree, **this file wins**.
 | M5 | Sliders connected to physics | Antigravity + Gemini 4 Argon | Done | v0.1-ui | Instant T3 and rp sliders, error alert on pinch violation |
 | M6 | T-s diagram | Antigravity + Gemini 4 Argon | Done | v0.1-ui | Interactive SVG T-s diagram with saturation dome and 9 points |
 | M7 | Flow animation and colors | Antigravity + Gemini 4 Argon | Done | v0.1-ui | Animated flow spheres, cold-to-hot pipe colors, play/pause |
-| M8 | Validation and full audit | Claude Code (Opus 5.5) | Not started | m8 | Critical |
+| M8 | Validation and full audit | Antigravity + Gemini 4 Argon | Done | v0.1-audit | Full audit in docs/AUDIT.md, 16 unit tests passing, 2 todo |
 | M9 | Polish, deploy, demo | Antigravity agent (Gemini) | Not started | m9 | |
 
 Status values: Not started, Plan approved, Building, Testing, Done.

@@ -244,6 +244,25 @@ const AnimatedPipe: React.FC<AnimatedPipeProps> = ({ seg, playing }) => {
   );
 };
 
+class CanvasErrorBoundary extends React.Component<
+  { children: React.ReactNode },
+  { hasError: boolean }
+> {
+  constructor(props: { children: React.ReactNode }) {
+    super(props);
+    this.state = { hasError: false };
+  }
+  static getDerivedStateFromError(): { hasError: boolean } {
+    return { hasError: true };
+  }
+  render() {
+    if (this.state.hasError) {
+      return null;
+    }
+    return this.props.children;
+  }
+}
+
 export const PlantScene3D: React.FC<PlantScene3DProps> = ({
   result,
   selectedComponent,
@@ -272,41 +291,43 @@ export const PlantScene3D: React.FC<PlantScene3DProps> = ({
       </div>
 
       <div className="canvas-wrapper">
-        <Canvas camera={{ position: [0, 6.8, 12.5], fov: 44 }}>
-          <ambientLight intensity={0.75} />
-          <directionalLight position={[8, 14, 10]} intensity={1.15} />
-          <directionalLight position={[-8, 6, -8]} intensity={0.45} />
+        <CanvasErrorBoundary>
+          <Canvas camera={{ position: [0, 6.8, 12.5], fov: 44 }}>
+            <ambientLight intensity={0.75} />
+            <directionalLight position={[8, 14, 10]} intensity={1.15} />
+            <directionalLight position={[-8, 6, -8]} intensity={0.45} />
 
-          <gridHelper args={[20, 20, '#1e293b', '#0f172a']} position={[0, -0.75, 0]} />
+            <gridHelper args={[20, 20, '#1e293b', '#0f172a']} position={[0, -0.75, 0]} />
 
-          {PLANT_COMPONENTS.map((meta) => {
-            const outState = result.states[meta.outletStateId];
-            const colorHex = temperatureToHexColor(outState.T_K);
-            return (
-              <EquipmentMesh
-                key={meta.id}
-                meta={meta}
-                isSelected={selectedComponent === meta.id}
-                colorHex={colorHex}
-                label={t.components[meta.id].name}
-                onSelect={() => onSelectComponent(meta.id)}
-              />
-            );
-          })}
+            {PLANT_COMPONENTS.map((meta) => {
+              const outState = result.states[meta.outletStateId];
+              const colorHex = temperatureToHexColor(outState.T_K);
+              return (
+                <EquipmentMesh
+                  key={meta.id}
+                  meta={meta}
+                  isSelected={selectedComponent === meta.id}
+                  colorHex={colorHex}
+                  label={t.components[meta.id].name}
+                  onSelect={() => onSelectComponent(meta.id)}
+                />
+              );
+            })}
 
-          {pipeSegments.map((seg) => (
-            <AnimatedPipe key={seg.id} seg={seg} playing={flowPlaying} />
-          ))}
+            {pipeSegments.map((seg) => (
+              <AnimatedPipe key={seg.id} seg={seg} playing={flowPlaying} />
+            ))}
 
-          <OrbitControls
-            enablePan
-            enableZoom
-            enableRotate
-            minDistance={5}
-            maxDistance={24}
-            target={[0, 0.8, 0]}
-          />
-        </Canvas>
+            <OrbitControls
+              enablePan
+              enableZoom
+              enableRotate
+              minDistance={5}
+              maxDistance={24}
+              target={[0, 0.8, 0]}
+            />
+          </Canvas>
+        </CanvasErrorBoundary>
       </div>
 
       <div className="component-Invalid-selector-bar" role="tablist" aria-label={t.components.selectedTitle}>

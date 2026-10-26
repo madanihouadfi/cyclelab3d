@@ -65,18 +65,18 @@ Vite, TypeScript, React, Three.js with React Three Fiber, Vitest, JSON dictionar
 
 | Module | Name | Status |
 | --- | --- | --- |
-| M0 | Project setup | Not started |
-| M1 | Gas side physics | Not started |
-| M2 | Steam side physics | Not started |
-| M3 | 3D plant scene | Not started |
-| M4 | Laws and info panel | Not started |
-| M5 | Sliders connected | Not started |
-| M6 | T-s diagram | Not started |
-| M7 | Flow animation | Not started |
-| M8 | Validation and audit | Not started |
+| M0 | Project setup | Done (`v0.1-M0`) |
+| M1 | Gas side physics | Done (`v0.1-physics`) |
+| M2 | Steam side physics | Done (`v0.1-physics`) |
+| M3 | 3D plant scene | Done (`v0.1-ui`) |
+| M4 | Laws and info panel | Done (`v0.1-ui`) |
+| M5 | Sliders connected | Done (`v0.1-ui`) |
+| M6 | T-s diagram | Done (`v0.1-ui`) |
+| M7 | Flow animation | Done (`v0.1-ui`) |
+| M8 | Validation and audit | Done (`v0.1-audit`) |
 | M9 | Polish and deploy | Not started |
 
-Overall: 0/10.
+Overall: 9/10.
 
 ## Next steps
 

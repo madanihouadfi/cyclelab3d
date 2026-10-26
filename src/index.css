@@ -511,18 +511,29 @@ body {
 
 /* Mobile Responsive Layout: Side Panel becomes a Bottom Sheet */
 @media (max-width: 768px) {
+  .top-bar {
+    padding: 0.65rem 0.85rem;
+  }
+
   .workspace-grid {
-    grid-template-columns: 1fr;
-    padding: 0.75rem;
+    grid-template-columns: minmax(0, 1fr);
+    padding: 0.65rem;
     padding-bottom: 5.5rem;
   }
 
   .stage-bottom-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .scene-card,
+  .panel-card {
+    padding: 0.75rem;
+    min-width: 0;
+    overflow: hidden;
   }
 
   .canvas-wrapper {
-    height: 270px;
+    height: 250px;
   }
 
   .bottom-sheet {

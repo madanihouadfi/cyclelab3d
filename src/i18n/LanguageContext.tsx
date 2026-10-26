@@ -20,7 +20,12 @@ const LanguageContext = createContext<LanguageContextValue>({
 });
 
 export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [lang, setLang] = useState<Language>('en');
+  const [lang, setLang] = useState<Language>(() => {
+    if (typeof window !== 'undefined' && window.location.search.includes('lang=fr')) {
+      return 'fr';
+    }
+    return 'en';
+  });
   return (
     <LanguageContext.Provider value={{ lang, setLang, t: dictionaries[lang] }}>
       {children}
