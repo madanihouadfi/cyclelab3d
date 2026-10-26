@@ -1,32 +1,21 @@
-import {
-  DEFAULT_PARAMETERS,
-  KELVIN_OFFSET,
-  SLIDER_BOUNDS,
-  solveCombinedCycle,
-  temperatureToHexColor,
-  type CombinedCycleResult,
-  type ComponentId,
-  type StatePointId,
+import type {
+  CombinedCycleResult,
+  ComponentId,
+  StatePoint,
+  StatePointId,
 } from '../physics';
-
-export { temperatureToHexColor };
 
 export type QualityMode = 'high' | 'low';
 export type PipeColorMode = 'service' | 'temperature';
 export type PipeServiceType = 'air' | 'flue-gas' | 'steam' | 'water';
-
-export type ParticlePhaseStyle =
+export type ParticleStyle =
   | 'gas'
   | 'liquid-water'
   | 'wet-steam'
   | 'superheated-steam';
 
 /**
- * Industrial pipe service colors per M3b specification:
- * - air: sky blue
- * - flue-gas: red hot exhaust gas
- * - steam: orange/red steam
- * - water: deep industrial water blue
+ * Standard industrial piping service color palette (M3b/M3c).
  */
 export const PIPE_SERVICE_COLORS: Record<PipeServiceType, string> = {
   air: '#38bdf8',
@@ -36,26 +25,36 @@ export const PIPE_SERVICE_COLORS: Record<PipeServiceType, string> = {
 };
 
 /**
- * Reference steam mass flow rate at default parameters [kg/s],
- * computed directly from the physics engine so nothing is hard-coded.
- */
-const DEFAULT_STEAM_MDOT_KGS = solveCombinedCycle(DEFAULT_PARAMETERS).steamMassFlow_kgs;
-
-/**
- * 3D positions of the 8 plant components.
- * Compressor, Gas Turbine, Steam Turbine, and Generator are aligned coaxially
- * along the single synchronous powertrain shaft at (y = 0.85, z = -1.0).
+ * Single-shaft combined cycle arrangement (M3c Correction 1):
+ * Steam turbine – Generator – Compressor – Combustor – Gas turbine → axial exhaust diffuser → HRSG.
+ * Generator is driven from the cold end of the Compressor and coupled to the Steam Turbine.
+ * Condenser sits beside/below the Steam Turbine exhaust; Feedwater Pump sits on the front auxiliary skid row.
  */
 export const COMPONENT_POSITIONS_3D: Record<ComponentId, [number, number, number]> = {
-  compressor: [-6.8, 0.85, -1.0],
-  combustor: [-4.5, 2.35, -1.0],
-  gasTurbine: [-2.2, 0.85, -1.0],
-  hrsg: [0.0, 1.85, -3.5],
-  steamTurbine: [2.4, 0.85, -1.0],
-  generator: [6.0, 0.85, -1.0],
-  condenser: [2.4, 0.25, 2.2],
-  pump: [-1.0, 0.25, 2.2],
+  steamTurbine: [-8.6, 0.85, -0.8],
+  generator: [-5.2, 0.85, -0.8],
+  compressor: [-1.6, 0.85, -0.8],
+  combustor: [0.8, 0.85, -0.8],
+  gasTurbine: [3.2, 0.85, -0.8],
+  hrsg: [7.6, 0.85, -0.8],
+  condenser: [-8.6, 0.35, 2.5],
+  pump: [-2.2, 0.35, 2.5],
 };
+
+/**
+ * Single continuous synchronous shaft geometry (3000 rpm, 50 Hz grid-synchronized)
+ * running from Steam Turbine (-8.6) -> Generator (-5.2) -> Compressor (-1.6) -> Combustor (0.8) -> Gas Turbine (3.2),
+ * terminating before the axial exhaust diffuser (x = 4.1).
+ */
+export const POWERTRAIN_SHAFT = {
+  startX: -9.8,
+  endX: 4.0,
+  centerX: -2.9,
+  length: 13.8,
+  y: 0.85,
+  z: -0.8,
+  syncAngularSpeedRadPerSec: 7.5,
+} as const;
 
 export interface CameraShot {
   position: [number, number, number];
@@ -63,92 +62,47 @@ export interface CameraShot {
 }
 
 export const CAMERA_OVERVIEW_SHOT: CameraShot = {
-  position: [0.2, 7.2, 13.8],
-  target: [0.0, 1.1, -0.8],
+  position: [-0.2, 7.6, 14.8],
+  target: [-0.2, 1.1, 0.2],
 };
 
 /**
- * Smooth camera close-up framing targets for each of the 8 components in Showcase / Focus mode.
+ * Pre-computed camera close-up positions and look-at targets for Showcase Mode zoom.
  */
 export const COMPONENT_CAMERA_SHOTS: Record<ComponentId, CameraShot> = {
-  compressor: {
-    position: [-8.6, 2.5, 2.6],
-    target: [-6.8, 0.9, -1.0],
-  },
-  combustor: {
-    position: [-4.5, 3.6, 2.2],
-    target: [-4.5, 2.2, -1.0],
-  },
-  gasTurbine: {
-    position: [-2.4, 2.45, 2.4],
-    target: [-2.2, 0.95, -1.0],
-  },
-  hrsg: {
-    position: [2.6, 3.4, 0.4],
-    target: [0.0, 2.1, -3.5],
-  },
   steamTurbine: {
-    position: [2.4, 2.4, 2.5],
-    target: [2.4, 0.9, -1.0],
+    position: [-8.6, 2.7, 3.6],
+    target: [-8.6, 0.85, -0.8],
   },
   generator: {
-    position: [7.8, 2.5, 2.8],
-    target: [6.0, 0.9, -1.0],
+    position: [-5.2, 2.6, 3.6],
+    target: [-5.2, 0.85, -0.8],
+  },
+  compressor: {
+    position: [0.2, 3.1, 7.2],
+    target: [0.2, 1.65, -0.8],
+  },
+  combustor: {
+    position: [0.8, 2.5, 3.4],
+    target: [0.8, 0.95, -0.8],
+  },
+  gasTurbine: {
+    position: [1.2, 3.2, 5.4],
+    target: [1.0, 1.55, -0.8],
+  },
+  hrsg: {
+    position: [7.6, 3.4, 5.2],
+    target: [7.6, 2.1, -0.8],
   },
   condenser: {
-    position: [4.2, 1.8, 5.2],
-    target: [2.4, 0.35, 2.2],
+    position: [-8.6, 2.2, 6.4],
+    target: [-8.6, 0.45, 2.5],
   },
   pump: {
-    position: [-1.0, 1.6, 4.8],
-    target: [-1.0, 0.3, 2.2],
+    position: [-2.2, 2.0, 5.8],
+    target: [-2.2, 0.45, 2.5],
   },
 };
-
-/**
- * Single visible powertrain shaft geometry parameters.
- */
-export const POWERTRAIN_SHAFT = {
-  y: 0.85,
-  z: -1.0,
-  xStart: -8.2,
-  xEnd: 7.2,
-  get length(): number {
-    return this.xEnd - this.xStart;
-  },
-  get centerX(): number {
-    return (this.xStart + this.xEnd) / 2;
-  },
-  /** Constant visual angular speed representing 3000 rpm (50 Hz) grid synchronization [rad/s] */
-  syncAngularSpeedRadPerSec: 5.5,
-} as const;
-
-export interface LegendTick {
-  fraction: number;
-  labelK: string;
-  labelC: string;
-  colorHex: string;
-}
-
-/**
- * Build temperature legend ticks in both K and °C from physics bounds.
- */
-export function getTemperatureLegendTicks(): LegendTick[] {
-  const minT = DEFAULT_PARAMETERS.T1_K;
-  const maxT = SLIDER_BOUNDS.T3_K.max;
-  const fractions = [0, 0.33, 0.67, 1.0];
-
-  return fractions.map((f) => {
-    const T_K = minT + f * (maxT - minT);
-    const T_C = T_K - KELVIN_OFFSET;
-    return {
-      fraction: f,
-      labelK: `${T_K.toFixed(0)} K`,
-      labelC: `${T_C.toFixed(0)} °C`,
-      colorHex: temperatureToHexColor(T_K),
-    };
-  });
-}
 
 export interface PipeAnimationSegment {
   id: string;
@@ -161,265 +115,388 @@ export interface PipeAnimationSegment {
   outletT_K: number;
   inletColorHex: string;
   outletColorHex: string;
-  waypoints: Array<[number, number, number]>;
-  /** Mass flow rate from physics [kg/s] */
-  mDot_kgs: number;
-  /** Loop-normalized particle speed [path-fractions / s] */
+  massFlow_kgs: number;
   particleSpeed: number;
-  /** Fluid phase visual style */
-  particleStyle: ParticlePhaseStyle;
-  /** Steam quality x in [0, 1] when wet steam, null otherwise */
-  vaporQuality: number | null;
+  particleStyle: ParticleStyle;
+  waypoints: [number, number, number][];
+  valvePosition?: [number, number, number];
 }
 
 export interface CombustorGlowParams {
   normalizedTit: number;
-  coreColorHex: string;
+  emissiveColorHex: string;
   emissiveIntensity: number;
-  haloOpacity: number;
-  flameScale: number;
   pointLightIntensity: number;
 }
 
+export interface HrsgTubeBankParams {
+  superheaterTemp_K: number;
+  evaporatorTemp_K: number;
+  economizerTemp_K: number;
+  superheaterColorHex: string;
+  evaporatorColorHex: string;
+  economizerColorHex: string;
+  superheaterGlow: number;
+  evaporatorGlow: number;
+  economizerGlow: number;
+}
+
 export interface StackPlumeParams {
-  stackTopPosition: [number, number, number];
-  T5_K: number;
+  stackTemperature_K: number;
+  stackTemperature_C: number;
   normalizedStackTemp: number;
-  riseSpeed: number;
   opacity: number;
+  riseSpeed: number;
+  colorHex: string;
+  stackTopPosition: [number, number, number];
+}
+
+export interface CoolingTowerPlumeParams {
+  condenserHeatRejection_MW: number;
+  opacity: number;
+  riseSpeed: number;
+  towerTopPosition: [number, number, number];
+}
+
+export interface HeatShimmerParams {
+  exhaustTemp_K: number;
+  stackTemp_K: number;
+  exhaustIntensity: number;
+  stackIntensity: number;
+  diffuserTopPosition: [number, number, number];
+  stackTopPosition: [number, number, number];
+}
+
+export interface TemperatureLegendTick {
+  T_K: number;
+  T_C: number;
+  labelK: string;
+  labelC: string;
   colorHex: string;
 }
 
 export interface SceneAnimationParams {
   shaftAngularSpeedRadPerSec: number;
   combustorGlow: CombustorGlowParams;
+  hrsgTubeBanks: HrsgTubeBankParams;
   stackPlume: StackPlumeParams;
+  coolingTowerPlume: CoolingTowerPlumeParams;
+  heatShimmer: HeatShimmerParams;
   pipes: PipeAnimationSegment[];
-  legendTicks: LegendTick[];
-}
-
-function classifyParticleStyle(
-  fluid: 'air' | 'gas' | 'water' | 'steam',
-  quality: number | null,
-): ParticlePhaseStyle {
-  if (fluid === 'water') {
-    return 'liquid-water';
-  }
-  if (fluid === 'steam') {
-    return quality !== null && quality < 0.999 ? 'wet-steam' : 'superheated-steam';
-  }
-  return 'gas';
-}
-
-function classifyPipeService(stateId: StatePointId): PipeServiceType {
-  if (stateId === 1 || stateId === 2) return 'air';
-  if (stateId === 3 || stateId === 4 || stateId === 5) return 'flue-gas';
-  if (stateId === 8 || stateId === 9) return 'steam';
-  return 'water';
+  legendTicks: TemperatureLegendTick[];
 }
 
 /**
- * Compute all 3D scene animation parameters strictly from CombinedCycleResult.
+ * Smooth piecewise-linear color interpolation from cold (288 K) to hot (1700 K).
+ */
+export function temperatureToHexColor(T_K: number): string {
+  const minT = 288.15;
+  const maxT = 1700.0;
+  const clamped = Math.max(minT, Math.min(maxT, T_K));
+  const u = (clamped - minT) / (maxT - minT);
+
+  const stops: { u: number; r: number; g: number; b: number }[] = [
+    { u: 0.0, r: 0x38, g: 0xbd, b: 0xf8 }, // Cold sky-blue (288 K)
+    { u: 0.33, r: 0x34, g: 0xd3, b: 0x99 }, // Warm teal-green (~754 K)
+    { u: 0.67, r: 0xfb, g: 0x92, b: 0x3c }, // Hot amber-orange (~1234 K)
+    { u: 1.0, r: 0xef, g: 0x44, b: 0x44 }, // Peak flame crimson (1700 K)
+  ];
+
+  let lower = stops[0];
+  let upper = stops[stops.length - 1];
+  for (let i = 0; i < stops.length - 1; i++) {
+    if (u >= stops[i].u && u <= stops[i + 1].u) {
+      lower = stops[i];
+      upper = stops[i + 1];
+      break;
+    }
+  }
+
+  const span = upper.u - lower.u || 1;
+  const localT = (u - lower.u) / span;
+  const r = Math.round(lower.r + (upper.r - lower.r) * localT);
+  const g = Math.round(lower.g + (upper.g - lower.g) * localT);
+  const b = Math.round(lower.b + (upper.b - lower.b) * localT);
+
+  const toHex = (n: number) => n.toString(16).padStart(2, '0');
+  return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+}
+
+/**
+ * Determines particle visual style from physics fluid type and steam quality x.
+ */
+export function resolveParticleStyle(state: StatePoint): ParticleStyle {
+  if (state.fluid === 'air' || state.fluid === 'gas') {
+    return 'gas';
+  }
+  if (state.fluid === 'water') {
+    return 'liquid-water';
+  }
+  if (state.quality !== null && state.quality < 1.0) {
+    return 'wet-steam';
+  }
+  return 'superheated-steam';
+}
+
+const BASE_GAS_MASS_FLOW_KGS = 100.0;
+const BASE_STEAM_MASS_FLOW_KGS = 13.03556283539533;
+const BASE_PARTICLE_SPEED_UNITS = 0.48;
+
+/**
+ * Orthogonal (90-degree right-angle) pipe routes connecting all components in the M3c single-shaft layout.
+ */
+const PIPE_ROUTE_DEFINITIONS: {
+  id: string;
+  loop: 'gas' | 'steam';
+  service: PipeServiceType;
+  inletStateId: StatePointId;
+  outletStateId: StatePointId;
+  waypoints: [number, number, number][];
+  valvePosition?: [number, number, number];
+}[] = [
+  {
+    // Elevated Air Intake Filter House downward into Compressor radial inlet plenum -> Compressor discharge
+    id: 'air-intake-to-comp',
+    loop: 'gas',
+    service: 'air',
+    inletStateId: 1,
+    outletStateId: 2,
+    waypoints: [
+      [-2.55, 3.1, -0.8],
+      [-2.55, 1.35, -0.8],
+      [-0.85, 1.35, -0.8],
+    ],
+  },
+  {
+    // Compressor discharge -> Combustor plenum -> Gas Turbine inlet
+    id: 'comp-to-comb-to-gt',
+    loop: 'gas',
+    service: 'flue-gas',
+    inletStateId: 2,
+    outletStateId: 3,
+    waypoints: [
+      [-0.65, 1.35, -0.8],
+      [0.8, 1.35, -0.8],
+      [2.45, 1.35, -0.8],
+    ],
+  },
+  {
+    // Gas Turbine exit -> Axial Exhaust Diffuser -> HRSG gas inlet (Superheater side)
+    id: 'gt-exhaust-to-hrsg',
+    loop: 'gas',
+    service: 'flue-gas',
+    inletStateId: 4,
+    outletStateId: 4,
+    waypoints: [
+      [3.95, 0.95, -0.8],
+      [5.05, 0.95, -0.8],
+      [6.15, 0.95, -0.8],
+    ],
+  },
+  {
+    // HRSG internal gas path: Superheater (-X) -> Evaporator (mid) -> Economizer (+X) -> Stack
+    id: 'hrsg-gas-to-stack',
+    loop: 'gas',
+    service: 'flue-gas',
+    inletStateId: 4,
+    outletStateId: 5,
+    waypoints: [
+      [6.2, 1.35, -0.8],
+      [7.6, 1.55, -0.8],
+      [9.0, 1.85, -0.8],
+      [9.0, 4.35, -0.8],
+    ],
+  },
+  {
+    // Superheated Main Steam Line (Orthogonal overhead bridge):
+    // Exits HRSG Superheater header (x=6.45) -> rises to overhead pipe rack (y=3.35) ->
+    // turns 90° to z=-2.35 -> runs along back rack to x=-8.6 -> turns 90° forward to z=-0.8 -> drops into Steam Turbine HP inlet
+    id: 'hrsg-superheater-to-st',
+    loop: 'steam',
+    service: 'steam',
+    inletStateId: 8,
+    outletStateId: 8,
+    waypoints: [
+      [6.45, 2.85, -0.8],
+      [6.45, 3.35, -0.8],
+      [6.45, 3.35, -2.35],
+      [-8.6, 3.35, -2.35],
+      [-8.6, 3.35, -0.8],
+      [-8.6, 1.55, -0.8],
+    ],
+    valvePosition: [1.5, 3.35, -2.35],
+  },
+  {
+    // Steam Turbine LP Exhaust -> Orthogonal 90° crossover duct into Condenser top steam dome
+    id: 'st-exhaust-to-condenser',
+    loop: 'steam',
+    service: 'steam',
+    inletStateId: 9,
+    outletStateId: 9,
+    waypoints: [
+      [-8.6, 0.65, -0.15],
+      [-8.6, 1.35, -0.15],
+      [-8.6, 1.35, 2.5],
+      [-8.6, 0.95, 2.5],
+    ],
+  },
+  {
+    // Condenser hotwell outlet -> Orthogonal horizontal suction line -> Feedwater Pump suction
+    id: 'condenser-to-pump',
+    loop: 'steam',
+    service: 'water',
+    inletStateId: 6,
+    outletStateId: 6,
+    waypoints: [
+      [-7.35, 0.25, 2.5],
+      [-5.0, 0.25, 2.5],
+      [-2.65, 0.25, 2.5],
+    ],
+    valvePosition: [-5.0, 0.25, 2.5],
+  },
+  {
+    // Feedwater Pump discharge -> Orthogonal 90° run to HRSG Economizer inlet (coolest gas side at x=8.75)
+    id: 'pump-to-hrsg-economizer',
+    loop: 'steam',
+    service: 'water',
+    inletStateId: 7,
+    outletStateId: 7,
+    waypoints: [
+      [-2.2, 0.75, 2.5],
+      [-2.2, 1.05, 2.5],
+      [8.75, 1.05, 2.5],
+      [8.75, 1.05, -0.15],
+    ],
+    valvePosition: [3.2, 1.05, 2.5],
+  },
+];
+
+/**
+ * Pure mapping function that derives all 3D scene animation parameters from `CombinedCycleResult`.
  */
 export function buildSceneAnimationParams(
   result: CombinedCycleResult,
   flowPlaying: boolean,
 ): SceneAnimationParams {
-  const { states, parameters, ok } = result;
-  const active = flowPlaying && ok;
+  const isActive = flowPlaying && result.ok;
 
-  // 1. Constant synchronous shaft speed (3000 rpm / 50 Hz visual representation); stops only when paused or invalid
-  const shaftAngularSpeedRadPerSec = active ? POWERTRAIN_SHAFT.syncAngularSpeedRadPerSec : 0;
+  // Constant synchronous speed (3000 rpm, 50 Hz) when active; 0 when paused or invalid
+  const shaftAngularSpeedRadPerSec = isActive
+    ? POWERTRAIN_SHAFT.syncAngularSpeedRadPerSec
+    : 0;
 
-  // 2. Combustor flame glow proportional to T3 slider
-  const titMin = SLIDER_BOUNDS.T3_K.min;
-  const titMax = SLIDER_BOUNDS.T3_K.max;
-  const normalizedTit = Math.max(
-    0,
-    Math.min(1, (parameters.T3_K - titMin) / (titMax - titMin)),
-  );
+  // Combustor glow driven by T3_K (slider range 1100 K to 1700 K)
+  const T3_K = result.states[3].T_K;
+  const normalizedTit = Math.max(0, Math.min(1, (T3_K - 1100) / (1700 - 1100)));
   const combustorGlow: CombustorGlowParams = {
     normalizedTit,
-    coreColorHex: temperatureToHexColor(parameters.T3_K),
-    emissiveIntensity: 0.4 + 1.5 * normalizedTit,
-    haloOpacity: 0.22 + 0.48 * normalizedTit,
-    flameScale: 0.85 + 0.35 * normalizedTit,
-    pointLightIntensity: 0.8 + 2.6 * normalizedTit,
+    emissiveColorHex: temperatureToHexColor(T3_K),
+    emissiveIntensity: 0.45 + normalizedTit * 1.45,
+    pointLightIntensity: 0.9 + normalizedTit * 2.4,
   };
 
-  // 3. HRSG stack exhaust plume proportional to stack temperature T5
-  const T5_K = states[5].T_K;
-  const normalizedStackTemp = Math.max(
-    0.08,
-    Math.min(1, (T5_K - parameters.T1_K) / (650 - parameters.T1_K)),
-  );
+  // Correction 2: HRSG tube bank colors in gas flow order (Superheater -> Evaporator -> Economizer)
+  // Scale gas temperature across the HRSG operating window (360 K stack to 820 K exhaust) so hot/mid/cool zones are clearly distinct
+  const hrsgTempToHex = (T_K: number) => {
+    const u = Math.max(0, Math.min(1, (T_K - 360) / (820 - 360)));
+    return temperatureToHexColor(288.15 + u * (1700 - 288.15));
+  };
+  const T4_K = result.states[4].T_K;
+  const T5_K = result.states[5].T_K;
+  const T_evap_K = result.hrsg.T_gas_pinch_K;
+  const hrsgTubeBanks: HrsgTubeBankParams = {
+    superheaterTemp_K: T4_K,
+    evaporatorTemp_K: T_evap_K,
+    economizerTemp_K: T5_K,
+    superheaterColorHex: hrsgTempToHex(T4_K),
+    evaporatorColorHex: hrsgTempToHex(T_evap_K),
+    economizerColorHex: hrsgTempToHex(T5_K),
+    superheaterGlow: Math.max(0.35, Math.min(1.15, (T4_K - 600) / 320)),
+    evaporatorGlow: Math.max(0.25, Math.min(0.85, (T_evap_K - 440) / 320)),
+    economizerGlow: Math.max(0.18, Math.min(0.55, (T5_K - 320) / 320)),
+  };
+
+  // HRSG stack exhaust plume driven by T5_K
+  const T5_C = T5_K - 273.15;
+  const normalizedStackTemp = Math.max(0, Math.min(1, (T5_K - 340) / (650 - 340)));
   const stackPlume: StackPlumeParams = {
-    stackTopPosition: [0.0, 4.45, -3.5],
-    T5_K,
+    stackTemperature_K: T5_K,
+    stackTemperature_C: T5_C,
     normalizedStackTemp,
-    riseSpeed: active ? 0.35 + 0.85 * normalizedStackTemp : 0,
-    opacity: 0.14 + 0.42 * normalizedStackTemp,
-    colorHex: temperatureToHexColor(T5_K),
+    opacity: result.ok ? 0.16 + normalizedStackTemp * 0.34 : 0.05,
+    riseSpeed: isActive ? 0.5 + normalizedStackTemp * 0.75 : 0,
+    colorHex: normalizedStackTemp > 0.55 ? '#cbd5e1' : '#94a3b8',
+    stackTopPosition: [9.0, 4.85, -0.8],
   };
 
-  // 4. Separate mass-flow normalization for Gas loop vs Steam loop
-  const gasSpeedFactor = active
-    ? (states[1].mDot_kgs / DEFAULT_PARAMETERS.mDot_air_kgs) * 0.48
-    : 0;
-  const steamSpeedFactor =
-    active && DEFAULT_STEAM_MDOT_KGS > 0
-      ? (states[8].mDot_kgs / DEFAULT_STEAM_MDOT_KGS) * 0.48
-      : 0;
+  // Cooling tower steam plume driven by real condenser heat rejection Q_cond from src/physics
+  const qCond_MW = result.rankine.condenserHeatRejected_MW;
+  const normCond = Math.max(0.15, Math.min(1, qCond_MW / 35.0));
+  const coolingTowerPlume: CoolingTowerPlumeParams = {
+    condenserHeatRejection_MW: qCond_MW,
+    opacity: result.ok ? 0.22 + normCond * 0.32 : 0.05,
+    riseSpeed: isActive ? 0.42 + normCond * 0.55 : 0,
+    towerTopPosition: [-12.2, 3.1, 2.5],
+  };
 
-  // 5. Pipe definitions with inlet -> outlet temperature gradients & service classification
-  const rawPipes: Array<{
-    id: string;
-    loop: 'gas' | 'steam';
-    inletStateId: StatePointId;
-    outletStateId: StatePointId;
-    streamStateId: StatePointId;
-    waypoints: Array<[number, number, number]>;
-  }> = [
-    {
-      id: 'pipe-1-air-inlet',
-      loop: 'gas',
-      inletStateId: 1,
-      outletStateId: 1,
-      streamStateId: 1,
-      waypoints: [
-        [-9.0, 0.85, -1.0],
-        [-7.8, 0.85, -1.0],
-        [-6.8, 0.85, -1.0],
-      ],
-    },
-    {
-      id: 'pipe-2-comp-to-comb',
-      loop: 'gas',
-      inletStateId: 1,
-      outletStateId: 2,
-      streamStateId: 2,
-      waypoints: [
-        [-6.1, 1.1, -1.0],
-        [-5.4, 2.35, -1.0],
-        [-4.5, 2.35, -1.0],
-      ],
-    },
-    {
-      id: 'pipe-3-comb-to-gt',
-      loop: 'gas',
-      inletStateId: 2,
-      outletStateId: 3,
-      streamStateId: 3,
-      waypoints: [
-        [-4.5, 2.35, -1.0],
-        [-3.4, 2.35, -1.0],
-        [-2.7, 1.1, -1.0],
-      ],
-    },
-    {
-      id: 'pipe-4-gt-to-hrsg',
-      loop: 'gas',
-      inletStateId: 3,
-      outletStateId: 4,
-      streamStateId: 4,
-      waypoints: [
-        [-1.5, 0.85, -1.0],
-        [-0.8, 1.1, -2.3],
-        [0.0, 1.2, -3.5],
-      ],
-    },
-    {
-      id: 'pipe-5-hrsg-stack',
-      loop: 'gas',
-      inletStateId: 4,
-      outletStateId: 5,
-      streamStateId: 5,
-      waypoints: [
-        [0.0, 2.2, -3.5],
-        [0.0, 3.4, -3.5],
-        [0.0, 4.45, -3.5],
-      ],
-    },
-    {
-      id: 'pipe-8-hrsg-to-st',
-      loop: 'steam',
-      inletStateId: 7,
-      outletStateId: 8,
-      streamStateId: 8,
-      waypoints: [
-        [0.0, 2.5, -3.5],
-        [1.4, 1.85, -2.2],
-        [2.4, 0.85, -1.0],
-      ],
-    },
-    {
-      id: 'pipe-9-st-to-cond',
-      loop: 'steam',
-      inletStateId: 8,
-      outletStateId: 9,
-      streamStateId: 9,
-      waypoints: [
-        [2.4, 0.85, -1.0],
-        [2.4, 0.5, 0.6],
-        [2.4, 0.25, 2.2],
-      ],
-    },
-    {
-      id: 'pipe-6-cond-to-pump',
-      loop: 'steam',
-      inletStateId: 9,
-      outletStateId: 6,
-      streamStateId: 6,
-      waypoints: [
-        [2.4, 0.25, 2.2],
-        [0.7, 0.25, 2.2],
-        [-1.0, 0.25, 2.2],
-      ],
-    },
-    {
-      id: 'pipe-7-pump-to-hrsg',
-      loop: 'steam',
-      inletStateId: 6,
-      outletStateId: 7,
-      streamStateId: 7,
-      waypoints: [
-        [-1.0, 0.25, 2.2],
-        [-0.6, 0.55, -0.6],
-        [0.0, 0.85, -3.5],
-      ],
-    },
-  ];
+  // Heat shimmer above GT axial exhaust diffuser (T4_K) and HRSG stack (T5_K)
+  const heatShimmer: HeatShimmerParams = {
+    exhaustTemp_K: T4_K,
+    stackTemp_K: T5_K,
+    exhaustIntensity: isActive ? Math.max(0.2, Math.min(1, (T4_K - 650) / 400)) : 0,
+    stackIntensity: isActive ? Math.max(0.15, Math.min(0.8, (T5_K - 350) / 300)) : 0,
+    diffuserTopPosition: [5.0, 2.1, -0.8],
+    stackTopPosition: [9.0, 5.1, -0.8],
+  };
 
-  const pipes: PipeAnimationSegment[] = rawPipes.map((p) => {
-    const inState = states[p.inletStateId];
-    const outState = states[p.outletStateId];
-    const streamState = states[p.streamStateId];
-    const service = classifyPipeService(p.streamStateId);
+  // Correction 3: Separate normalization for gas and steam loops
+  const pipes: PipeAnimationSegment[] = PIPE_ROUTE_DEFINITIONS.map((route) => {
+    const inState = result.states[route.inletStateId];
+    const outState = result.states[route.outletStateId];
+    const massFlow = outState.mDot_kgs;
+    const baseFlow =
+      route.loop === 'gas' ? BASE_GAS_MASS_FLOW_KGS : BASE_STEAM_MASS_FLOW_KGS;
+    const normalizedFlow = baseFlow > 0 ? massFlow / baseFlow : 0;
 
     return {
-      id: p.id,
-      loop: p.loop,
-      service,
-      serviceColorHex: PIPE_SERVICE_COLORS[service],
-      inletStateId: p.inletStateId,
-      outletStateId: p.outletStateId,
+      id: route.id,
+      loop: route.loop,
+      service: route.service,
+      serviceColorHex: PIPE_SERVICE_COLORS[route.service],
+      inletStateId: route.inletStateId,
+      outletStateId: route.outletStateId,
       inletT_K: inState.T_K,
       outletT_K: outState.T_K,
       inletColorHex: temperatureToHexColor(inState.T_K),
       outletColorHex: temperatureToHexColor(outState.T_K),
-      waypoints: p.waypoints,
-      mDot_kgs: streamState.mDot_kgs,
-      particleSpeed: p.loop === 'gas' ? gasSpeedFactor : steamSpeedFactor,
-      particleStyle: classifyParticleStyle(streamState.fluid, streamState.quality),
-      vaporQuality: streamState.quality,
+      massFlow_kgs: massFlow,
+      particleSpeed: isActive ? BASE_PARTICLE_SPEED_UNITS * normalizedFlow : 0,
+      particleStyle: resolveParticleStyle(outState),
+      waypoints: route.waypoints,
+      valvePosition: route.valvePosition,
+    };
+  });
+
+  const tickTempsK = [288.15, 754.0, 1234.0, 1700.0];
+  const legendTicks: TemperatureLegendTick[] = tickTempsK.map((T_K) => {
+    const T_C = T_K - 273.15;
+    return {
+      T_K,
+      T_C,
+      labelK: `${Math.round(T_K)} K`,
+      labelC: `${Math.round(T_C)} °C`,
+      colorHex: temperatureToHexColor(T_K),
     };
   });
 
   return {
     shaftAngularSpeedRadPerSec,
     combustorGlow,
+    hrsgTubeBanks,
     stackPlume,
+    coolingTowerPlume,
+    heatShimmer,
     pipes,
-    legendTicks: getTemperatureLegendTicks(),
+    legendTicks,
   };
 }

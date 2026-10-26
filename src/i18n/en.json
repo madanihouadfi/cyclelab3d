@@ -29,7 +29,8 @@
     "sceneryOff": "Scenery: Off",
     "showcaseEnter": "Showcase Mode",
     "showcaseExit": "Exit Showcase",
-    "backToOverview": "Back to Full View"
+    "backToOverview": "Back to Full View",
+    "cutawayLabel": "Educational cutaway view"
   },
   "sliders": {
     "title": "Operating Parameters",

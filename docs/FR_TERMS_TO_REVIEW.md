@@ -11,6 +11,7 @@ Every French technical and thermodynamic term in `src/i18n/fr.json` is listed be
 | `animation.serviceLegend.water` | Feedwater / Condensate | Eau alimentaire / Condensat | *Condensat* = condensed steam leaving the surface condenser. |
 | `animation.showcaseEnter` | Showcase Mode | Mode vitrine | Full-screen 3D plant presentation mode. |
 | `animation.backToOverview` | Back to Full View | Vue d'ensemble | Returns the 3D camera to the full plant overview. |
+| `animation.cutawayLabel` | Educational cutaway view | Vue en coupe pédagogique | *Vue en coupe* = cutaway/section view of the combustor flame zone. |
 | `sliders.titLabel` | Turbine Inlet Temperature (T3) | Température d'entrée turbine (T3) | Abbreviated TET in French (*Température d'Entrée Turbine*) / TIT in English. |
 | `sliders.rpLabel` | Compressor Pressure Ratio (rp) | Taux de compression (rp) | Also called *rapport de pression*. |
 | `sliders.etaComp` | Compressor Isentropic Eff. (η_c) | Rendement isentropique compresseur (η_c) | *Rendement isentropique* is the standard thermodynamic term. |

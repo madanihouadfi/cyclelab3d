@@ -29,7 +29,8 @@
     "sceneryOff": "Décor : Masqué",
     "showcaseEnter": "Mode vitrine",
     "showcaseExit": "Quitter vitrine",
-    "backToOverview": "Vue d'ensemble"
+    "backToOverview": "Vue d'ensemble",
+    "cutawayLabel": "Vue en coupe pédagogique"
   },
   "sliders": {
     "title": "Paramètres de fonctionnement",

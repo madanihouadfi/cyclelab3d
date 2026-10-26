@@ -36,18 +36,53 @@ describe('M8 + M7 Upgrade: Full Self-Audit, Pure Physics & Animation Mapping Ver
     expect(enKeys).toEqual(frKeys);
   });
 
-  it('defines 3D layout, showcase camera shots, and pipe service colors in src/scene/animationParams', () => {
+  it('defines 3D single-shaft layout (ST - Gen - Comp - Comb - GT -> HRSG), showcase camera shots, and pipe service colors in src/scene/animationParams', () => {
     for (const meta of PLANT_COMPONENTS) {
       expect(COMPONENT_POSITIONS_3D[meta.id]).toHaveLength(3);
       expect(COMPONENT_CAMERA_SHOTS[meta.id].position).toHaveLength(3);
       expect(COMPONENT_CAMERA_SHOTS[meta.id].target).toHaveLength(3);
     }
 
-    // Verify compressor, gasTurbine, steamTurbine, and generator share the single synchronous shaft Y and Z coordinates
-    for (const id of ['compressor', 'gasTurbine', 'steamTurbine', 'generator'] as const) {
+    // Verify single-shaft order along X: steamTurbine < generator < compressor < combustor < gasTurbine < hrsg
+    expect(COMPONENT_POSITIONS_3D.steamTurbine[0]).toBeLessThan(
+      COMPONENT_POSITIONS_3D.generator[0],
+    );
+    expect(COMPONENT_POSITIONS_3D.generator[0]).toBeLessThan(
+      COMPONENT_POSITIONS_3D.compressor[0],
+    );
+    expect(COMPONENT_POSITIONS_3D.compressor[0]).toBeLessThan(
+      COMPONENT_POSITIONS_3D.combustor[0],
+    );
+    expect(COMPONENT_POSITIONS_3D.combustor[0]).toBeLessThan(
+      COMPONENT_POSITIONS_3D.gasTurbine[0],
+    );
+    expect(COMPONENT_POSITIONS_3D.gasTurbine[0]).toBeLessThan(
+      COMPONENT_POSITIONS_3D.hrsg[0],
+    );
+
+    // Verify steamTurbine, generator, compressor, combustor, and gasTurbine share the synchronous shaft Y and Z coordinates
+    for (const id of [
+      'steamTurbine',
+      'generator',
+      'compressor',
+      'combustor',
+      'gasTurbine',
+    ] as const) {
       expect(COMPONENT_POSITIONS_3D[id][1]).toBe(POWERTRAIN_SHAFT.y);
       expect(COMPONENT_POSITIONS_3D[id][2]).toBe(POWERTRAIN_SHAFT.z);
     }
+
+    // Verify HRSG tube bank temperatures decrease from Superheater -> Evaporator -> Economizer
+    const defaultAnim = buildSceneAnimationParams(
+      solveCombinedCycle(DEFAULT_PARAMETERS),
+      true,
+    );
+    expect(defaultAnim.hrsgTubeBanks.superheaterTemp_K).toBeGreaterThan(
+      defaultAnim.hrsgTubeBanks.evaporatorTemp_K,
+    );
+    expect(defaultAnim.hrsgTubeBanks.evaporatorTemp_K).toBeGreaterThan(
+      defaultAnim.hrsgTubeBanks.economizerTemp_K,
+    );
 
     // Verify all pipe service colors are defined
     expect(PIPE_SERVICE_COLORS.air).toBe('#38bdf8');
