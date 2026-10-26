@@ -7,6 +7,43 @@
     "en": "EN",
     "fr": "FR"
   },
+  "nav": {
+    "ariaLabel": "Navigation principale",
+    "plant": "Centrale",
+    "parameters": "Paramètres",
+    "laws": "Lois",
+    "calculations": "Calculs",
+    "diagram": "Diagramme T–s",
+    "results": "Résultats",
+    "educationalCardTitle": "Modèle pédagogique"
+  },
+  "topbar": {
+    "breadcrumbAria": "Fil d'Ariane",
+    "resetDefaults": "Réinitialiser",
+    "themeToggleAria": "Basculer le thème clair ou sombre",
+    "lightMode": "Thème clair",
+    "darkMode": "Thème sombre"
+  },
+  "viewModes": {
+    "ariaLabel": "Mode d'affichage 3D",
+    "realistic": "Réaliste",
+    "xray": "Rayons X",
+    "temperature": "Température"
+  },
+  "viewport": {
+    "fullscreen": "Plein écran (mode vitrine)",
+    "resetCamera": "Réinitialiser la caméra",
+    "zoomIn": "Zoomer",
+    "zoomOut": "Dézoomer",
+    "settings": "Paramètres d'affichage",
+    "rotateHint": "Faire pivoter la vue"
+  },
+  "calculations": {
+    "title": "Calculs thermodynamiques détaillés",
+    "subtitle": "Applications numériques pas à pas pour les 9 points d'état et les bilans d'énergie.",
+    "placeholderBadge": "Bientôt disponible",
+    "placeholderBody": "Les développements numériques complets pas à pas et les tableaux de validation seront affichés dans cet onglet. Utilisez les onglets Centrale, Lois et Résultats pour inspecter les formules en direct."
+  },
   "animation": {
     "play": "Animer l'écoulement",
     "pause": "Pause écoulement",

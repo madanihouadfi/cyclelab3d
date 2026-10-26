@@ -12,6 +12,10 @@ Every French technical and thermodynamic term in `src/i18n/fr.json` is listed be
 | `animation.showcaseEnter` | Showcase Mode | Mode vitrine | Full-screen 3D plant presentation mode. |
 | `animation.backToOverview` | Back to Full View | Vue d'ensemble | Returns the 3D camera to the full plant overview. |
 | `animation.cutawayLabel` | Educational cutaway view | Vue en coupe pédagogique | *Vue en coupe* = cutaway/section view of the combustor flame zone. |
+| `nav.plant` / `parameters` / `laws` / `calculations` / `diagram` / `results` | Plant / Parameters / Laws / Calculations / T–s Diagram / Results | Centrale / Paramètres / Lois / Calculs / Diagramme T–s / Résultats | Left sidebar navigation labels in M6b. |
+| `topbar.resetDefaults` | Reset to defaults | Réinitialiser | Resets sliders, camera, view mode, and selected component to nominal design defaults. |
+| `viewModes.realistic` / `xray` / `temperature` | Realistic / X-ray / Temperature | Réaliste / Rayons X / Température | 3D viewport rendering modes (*Rayons X* = semi-transparent wireframe inspection mode). |
+| `viewport.rotateHint` | Rotate to view | Faire pivoter la vue | Subtle 3D orbit hint at bottom-center of viewport. |
 | `sliders.titLabel` | Turbine Inlet Temperature (T3) | Température d'entrée turbine (T3) | Abbreviated TET in French (*Température d'Entrée Turbine*) / TIT in English. |
 | `sliders.rpLabel` | Compressor Pressure Ratio (rp) | Taux de compression (rp) | Also called *rapport de pression*. |
 | `sliders.etaComp` | Compressor Isentropic Eff. (η_c) | Rendement isentropique compresseur (η_c) | *Rendement isentropique* is the standard thermodynamic term. |

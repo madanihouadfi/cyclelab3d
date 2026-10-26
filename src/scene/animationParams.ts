@@ -255,119 +255,124 @@ const PIPE_ROUTE_DEFINITIONS: {
   valvePosition?: [number, number, number];
 }[] = [
   {
-    // Elevated Air Intake Filter House downward into Compressor radial inlet plenum -> Compressor discharge
+    // 1. Elevated Air Intake Filter House louvers -> vertical silencer duct -> Compressor bellmouth -> Compressor HP discharge
     id: 'air-intake-to-comp',
     loop: 'gas',
     service: 'air',
     inletStateId: 1,
     outletStateId: 2,
     waypoints: [
-      [-2.55, 3.1, -0.8],
-      [-2.55, 1.35, -0.8],
-      [-0.85, 1.35, -0.8],
+      [-3.35, 3.32, -0.8],
+      [-2.38, 3.32, -0.8],
+      [-2.38, 0.85, -0.8],
+      [-0.72, 0.85, -0.8],
     ],
   },
   {
-    // Compressor discharge -> Combustor plenum -> Gas Turbine inlet
+    // 2. Compressor HP discharge -> Can-Annular Combustor cans -> Gas Turbine 4-stage expansion path
     id: 'comp-to-comb-to-gt',
     loop: 'gas',
     service: 'flue-gas',
     inletStateId: 2,
     outletStateId: 3,
     waypoints: [
-      [-0.65, 1.35, -0.8],
-      [0.8, 1.35, -0.8],
-      [2.45, 1.35, -0.8],
+      [-0.72, 0.85, -0.8],
+      [0.05, 1.22, -0.8],
+      [1.45, 1.22, -0.8],
+      [2.32, 0.85, -0.8],
+      [3.95, 0.85, -0.8],
     ],
   },
   {
-    // Gas Turbine exit -> Axial Exhaust Diffuser -> HRSG gas inlet (Superheater side)
+    // 3. Gas Turbine exit -> Axial Exhaust Diffuser & Transition Hood -> HRSG Superheater inlet face
     id: 'gt-exhaust-to-hrsg',
     loop: 'gas',
     service: 'flue-gas',
     inletStateId: 4,
     outletStateId: 4,
     waypoints: [
-      [3.95, 0.95, -0.8],
-      [5.05, 0.95, -0.8],
-      [6.15, 0.95, -0.8],
+      [3.95, 0.85, -0.8],
+      [5.0, 1.15, -0.8],
+      [6.05, 1.55, -0.8],
     ],
   },
   {
-    // HRSG internal gas path: Superheater (-X) -> Evaporator (mid) -> Economizer (+X) -> Stack
+    // 4. HRSG internal gas path: Superheater (-X) -> Evaporator (mid) -> Economizer (+X) -> Exhaust Stack
     id: 'hrsg-gas-to-stack',
     loop: 'gas',
     service: 'flue-gas',
     inletStateId: 4,
     outletStateId: 5,
     waypoints: [
-      [6.2, 1.35, -0.8],
-      [7.6, 1.55, -0.8],
-      [9.0, 1.85, -0.8],
-      [9.0, 4.35, -0.8],
+      [6.05, 1.55, -0.8],
+      [7.55, 1.65, -0.8],
+      [9.0, 1.75, -0.8],
+      [9.0, 5.05, -0.8],
     ],
   },
   {
-    // Superheated Main Steam Line (Orthogonal overhead bridge):
-    // Exits HRSG Superheater header (x=6.45) -> rises to overhead pipe rack (y=3.35) ->
-    // turns 90° to z=-2.35 -> runs along back rack to x=-8.6 -> turns 90° forward to z=-0.8 -> drops into Steam Turbine HP inlet
+    // 5. Superheated Main Steam Line (Orthogonal overhead bridge):
+    // Exits HRSG Superheater top header nozzle (x=6.55, y=3.45) -> rises to overhead pipe bridge (y=4.15) ->
+    // turns 90° to rear pipe rack (z=-2.35) -> runs to Steam Turbine HP barrel (x=-7.95) -> drops into HP Steam Chest
     id: 'hrsg-superheater-to-st',
     loop: 'steam',
     service: 'steam',
     inletStateId: 8,
     outletStateId: 8,
     waypoints: [
-      [6.45, 2.85, -0.8],
-      [6.45, 3.35, -0.8],
-      [6.45, 3.35, -2.35],
-      [-8.6, 3.35, -2.35],
-      [-8.6, 3.35, -0.8],
-      [-8.6, 1.55, -0.8],
+      [6.55, 3.45, -0.8],
+      [6.55, 4.15, -0.8],
+      [6.55, 4.15, -2.35],
+      [-7.95, 4.15, -2.35],
+      [-7.95, 4.15, -0.8],
+      [-7.95, 1.38, -0.8],
     ],
-    valvePosition: [1.5, 3.35, -2.35],
+    valvePosition: [1.5, 4.15, -2.35],
   },
   {
-    // Steam Turbine LP Exhaust -> Orthogonal 90° crossover duct into Condenser top steam dome
+    // 6. Steam Turbine LP Exhaust Hood (x=-9.25) -> Orthogonal 90° crossover trunk -> Condenser top steam dome neck
     id: 'st-exhaust-to-condenser',
     loop: 'steam',
     service: 'steam',
     inletStateId: 9,
     outletStateId: 9,
     waypoints: [
-      [-8.6, 0.65, -0.15],
-      [-8.6, 1.35, -0.15],
-      [-8.6, 1.35, 2.5],
-      [-8.6, 0.95, 2.5],
+      [-9.25, 1.45, -0.8],
+      [-9.25, 2.05, -0.8],
+      [-9.25, 2.05, 2.5],
+      [-9.25, 0.95, 2.5],
     ],
   },
   {
-    // Condenser hotwell outlet -> Orthogonal horizontal suction line -> Feedwater Pump suction
+    // 7. Condenser hotwell outlet nozzle (x=-7.35, y=0.35) -> straight suction line -> Feedwater Pump axial suction flange (x=-2.85)
     id: 'condenser-to-pump',
     loop: 'steam',
     service: 'water',
     inletStateId: 6,
     outletStateId: 6,
     waypoints: [
-      [-7.35, 0.25, 2.5],
-      [-5.0, 0.25, 2.5],
-      [-2.65, 0.25, 2.5],
+      [-7.35, 0.35, 2.5],
+      [-5.1, 0.35, 2.5],
+      [-2.85, 0.35, 2.5],
     ],
-    valvePosition: [-5.0, 0.25, 2.5],
+    valvePosition: [-5.1, 0.35, 2.5],
   },
   {
-    // Feedwater Pump discharge -> Orthogonal 90° run to HRSG Economizer inlet (coolest gas side at x=8.75)
+    // 8. Feedwater Pump top discharge nozzle (x=-2.55) -> orthogonal run to HRSG Economizer inlet header (x=8.45) -> Economizer riser -> Steam Drum
     id: 'pump-to-hrsg-economizer',
     loop: 'steam',
     service: 'water',
     inletStateId: 7,
     outletStateId: 7,
     waypoints: [
-      [-2.2, 0.75, 2.5],
-      [-2.2, 1.05, 2.5],
-      [8.75, 1.05, 2.5],
-      [8.75, 1.05, -0.15],
+      [-2.55, 0.72, 2.5],
+      [-2.55, 1.15, 2.5],
+      [8.45, 1.15, 2.5],
+      [8.45, 1.15, 0.25],
+      [8.45, 2.95, 0.25],
+      [7.6, 3.85, -0.45],
     ],
-    valvePosition: [3.2, 1.05, 2.5],
+    valvePosition: [3.2, 1.15, 2.5],
   },
 ];
 

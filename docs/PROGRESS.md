@@ -18,7 +18,7 @@ If this file and HANDOFF.md disagree, **this file wins**.
 | M3 | 3D plant scene (M3 + M3b + M3c) | Antigravity + Gemini 4 Argon | Done | v0.1-M3c | Single-shaft layout (ST-Gen-Comp-Comb-GT->HRSG), LatheGeometry casings, elevated filter house, orthogonal 90° piping, merged static geometry (<150 draw calls) |
 | M4 | Laws data and info panel | Antigravity + Gemini 4 Argon | Done | v0.1-ui | All 10 laws in EN/FR with live equations, FR terms listed |
 | M5 | Sliders connected to physics | Antigravity + Gemini 4 Argon | Done | v0.1-ui | Instant T3 and rp sliders, error alert on pinch violation |
-| M6 | T-s diagram | Antigravity + Gemini 4 Argon | Done | v0.1-ui | Interactive SVG T-s diagram with saturation dome and 9 points |
+| M6 | T-s diagram + UI/UX redesign (M6 + M6b) | Antigravity + Gemini 4 Argon | Done | v0.1-M6b | Dark graphite + light theme (WCAG AA), left sidebar + SVG logo, topbar breadcrumb/reset, round viewport tools, GizmoHelper, Realistic/X-ray/Temperature modes, 5 KPI cards, mobile bottom tab bar + sheet |
 | M7 | Flow animation and colors (M7 + M7b + M3c) | Antigravity + Gemini 4 Argon | Done | v0.1-M3c | Oriented 3D flow arrows, HRSG tube bank glow in gas order, cooling tower plume, heat shimmer, combustor cutaway |
 | M8 | Validation and full audit | Antigravity + Gemini 4 Argon | Done | v0.1-audit-fix | Audit fixes (combustor mass ratio, LHV/eta_comb, entropy datum, economizer note) |
 | M9 | Polish, deploy, demo | Antigravity agent (Gemini) | Not started | m9 | |

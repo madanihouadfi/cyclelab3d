@@ -9,6 +9,50 @@ interface ResultsPanelProps {
 
 const STATE_IDS: StatePointId[] = [1, 2, 3, 4, 5, 6, 7, 8, 9];
 
+/**
+ * Clean 5-card KPI row displayed directly below the 3D plant viewport (M6b Item 7):
+ * GT power, ST power, Net power (teal accent), GT efficiency, Combined efficiency (teal accent).
+ */
+export const KpiStripCards: React.FC<ResultsPanelProps> = ({ vm }) => {
+  const { t } = useLanguage();
+  const { summary } = vm;
+
+  return (
+    <section className="kpi-strip-row" aria-label={t.results.title}>
+      <div className="kpi-strip-card">
+        <span className="kpi-label">{t.results.gtPower}</span>
+        <strong className="kpi-strip-value">
+          {summary.gtPowerMW} <small>{t.units.MW}</small>
+        </strong>
+      </div>
+      <div className="kpi-strip-card">
+        <span className="kpi-label">{t.results.stPower}</span>
+        <strong className="kpi-strip-value">
+          {summary.stPowerMW} <small>{t.units.MW}</small>
+        </strong>
+      </div>
+      <div className="kpi-strip-card kpi-strip-highlight">
+        <span className="kpi-label">{t.results.netPower}</span>
+        <strong className="kpi-strip-value">
+          {summary.netPowerMW} <small>{t.units.MW}</small>
+        </strong>
+      </div>
+      <div className="kpi-strip-card">
+        <span className="kpi-label">{t.results.gtEfficiency}</span>
+        <strong className="kpi-strip-value">
+          {summary.gtEfficiencyPct} <small>{t.units.percent}</small>
+        </strong>
+      </div>
+      <div className="kpi-strip-card kpi-strip-highlight">
+        <span className="kpi-label">{t.results.ccEfficiency}</span>
+        <strong className="kpi-strip-value">
+          {summary.ccEfficiencyPct} <small>{t.units.percent}</small>
+        </strong>
+      </div>
+    </section>
+  );
+};
+
 export const ResultsPanel: React.FC<ResultsPanelProps> = ({ vm }) => {
   const { t } = useLanguage();
   const { summary, formattedStates } = vm;

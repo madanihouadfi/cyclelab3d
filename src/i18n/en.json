@@ -7,6 +7,43 @@
     "en": "EN",
     "fr": "FR"
   },
+  "nav": {
+    "ariaLabel": "Main Navigation",
+    "plant": "Plant",
+    "parameters": "Parameters",
+    "laws": "Laws",
+    "calculations": "Calculations",
+    "diagram": "T–s Diagram",
+    "results": "Results",
+    "educationalCardTitle": "Educational Model"
+  },
+  "topbar": {
+    "breadcrumbAria": "Breadcrumb",
+    "resetDefaults": "Reset to defaults",
+    "themeToggleAria": "Toggle light or dark theme",
+    "lightMode": "Light mode",
+    "darkMode": "Dark mode"
+  },
+  "viewModes": {
+    "ariaLabel": "3D View Mode",
+    "realistic": "Realistic",
+    "xray": "X-ray",
+    "temperature": "Temperature"
+  },
+  "viewport": {
+    "fullscreen": "Toggle fullscreen showcase",
+    "resetCamera": "Reset camera view",
+    "zoomIn": "Zoom in",
+    "zoomOut": "Zoom out",
+    "settings": "Viewport settings",
+    "rotateHint": "Rotate to view"
+  },
+  "calculations": {
+    "title": "Step-by-Step Thermodynamic Calculations",
+    "subtitle": "Detailed numerical substitutions for all 9 cycle state points and component energy balances.",
+    "placeholderBadge": "Coming in next module",
+    "placeholderBody": "Full step-by-step worked derivations and textbook comparison tables will appear in this tab. Use the Plant, Laws, and Results tabs to inspect live formulas and energy balances."
+  },
   "animation": {
     "play": "Play Flow",
     "pause": "Pause Flow",
