@@ -5,7 +5,9 @@ import {
   calcIsentropicTemperature,
   solveBraytonCycle,
 } from '../src/physics/brayton';
+import { solveCombinedCycle } from '../src/physics/combined';
 import { DEFAULT_PARAMETERS } from '../src/physics/constants';
+import { evaluateComponentLaws } from '../src/physics/laws';
 
 describe('M1: Gas-Side Brayton Cycle Physics', () => {
   it('computes ideal Brayton efficiency formula η = 1 - 1 / rp^((k-1)/k) accurately', () => {
@@ -56,5 +58,24 @@ describe('M1: Gas-Side Brayton Cycle Physics', () => {
     const gtError =
       Math.abs(0 - brayton.turbGrossPower_MW - gtDeltaH_MW) / brayton.turbGrossPower_MW;
     expect(gtError).toBeLessThan(0.001);
+  });
+
+  it('computes combustor fuel-to-air mass flow ratio m_fuel/m_air (%) from physics and exposes it in Law 10', () => {
+    const res = solveCombinedCycle(DEFAULT_PARAMETERS);
+    const expectedRatio = res.fuelMassFlow_kgs / res.states[2].mDot_kgs;
+    const expectedRatioPct = expectedRatio * 100;
+
+    expect(res.fuelAirRatio).toBeCloseTo(expectedRatio, 8);
+    expect(res.fuelAirRatioPct).toBeCloseTo(expectedRatioPct, 6);
+    expect(res.states[3].mDot_kgs).toBe(res.states[2].mDot_kgs);
+
+    const combLaws = evaluateComponentLaws('combustor', res);
+    const law10 = combLaws.find((l) => l.lawId === 10);
+    expect(law10).toBeDefined();
+    expect(law10?.showAirStandardNote).toBe(true);
+    expect(law10?.liveEquation).toContain('m_air = 100.00 kg/s');
+    expect(law10?.liveEquation).toContain(`m_fuel = ${res.fuelMassFlow_kgs.toFixed(2)} kg/s`);
+    expect(law10?.liveEquation).toContain('m_gas = 100.00 kg/s');
+    expect(law10?.liveEquation).toContain(`m_fuel/m_air = ${res.fuelAirRatioPct.toFixed(2)} %`);
   });
 });

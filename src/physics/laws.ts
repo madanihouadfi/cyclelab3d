@@ -6,6 +6,7 @@ export interface LiveLawEvaluation {
   lawId: LawId;
   dictKey: `law${LawId}`;
   liveEquation: string;
+  showAirStandardNote?: boolean;
 }
 
 /**
@@ -142,6 +143,14 @@ export function evaluateComponentLaws(
       }
       case 10: {
         // Mass conservation
+        if (componentId === 'combustor') {
+          return {
+            lawId,
+            dictKey,
+            liveEquation: `m_air = ${states[2].mDot_kgs.toFixed(2)} kg/s | m_fuel = ${result.fuelMassFlow_kgs.toFixed(2)} kg/s | m_gas = ${states[3].mDot_kgs.toFixed(2)} kg/s | m_fuel/m_air = ${result.fuelAirRatioPct.toFixed(2)} %`,
+            showAirStandardNote: true,
+          };
+        }
         return {
           lawId,
           dictKey,

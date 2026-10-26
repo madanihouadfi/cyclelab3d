@@ -23,6 +23,8 @@
     "etaGt": "Gas Turbine Isentropic Eff. (η_GT)",
     "etaSt": "Steam Turbine Isentropic Eff. (η_ST)",
     "etaPump": "Feedwater Pump Isentropic Eff. (η_p)",
+    "etaComb": "Combustion Efficiency (η_comb)",
+    "lhv": "Fuel Lower Heating Value (LHV)",
     "steamPress": "Live Steam Pressure (p8)",
     "steamTemp": "Live Steam Temperature (T8)",
     "condPress": "Condenser Pressure (p6 = p9)",
@@ -162,7 +164,8 @@
     "law10": {
       "title": "10. Conservation of Mass (Continuity)",
       "formula": "Σ ṁ_in = Σ ṁ_out",
-      "explanation": "At steady state, the total mass flow rate entering any control volume equals the total mass flow rate leaving it."
+      "explanation": "At steady state, the total mass flow rate entering any control volume equals the total mass flow rate leaving it.",
+      "airStandardNote": "Air-standard assumption: fuel mass neglected in the gas path"
     }
   },
   "diagram": {
@@ -172,7 +175,8 @@
     "satDomeLegend": "Water/Steam Saturation Dome",
     "xAxis": "Specific Entropy s [kJ/(kg·K)]",
     "yAxis": "Temperature T [K]",
-    "hoverHint": "Hover or tap a state point to inspect exact thermodynamic coordinates."
+    "hoverHint": "Hover or tap a state point to inspect exact thermodynamic coordinates.",
+    "entropyDatumNote": "Gas and steam entropies use different reference states"
   },
   "errors": {
     "title": "Thermodynamic Operating Limit Reached",

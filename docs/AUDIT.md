@@ -1,7 +1,7 @@
 # AUDIT REPORT — CycleLab 3D v0.1 (Modules M0–M8)
 
 **Auditor / Builder:** Antigravity + Gemini 4 Argon  
-**Tag:** `v0.1-audit`
+**Tag:** `v0.1-audit-fix`
 
 ---
 
@@ -10,33 +10,41 @@
 - **ESLint (`npm run lint`):** Passed (`0` errors, `0` warnings).
 - **TypeScript Strict Type-Check (`npm run typecheck`):** Passed (`0` errors).
 - **Production Bundle (`npm run build`):** Passed (`dist/` generated cleanly).
-- **Vitest Test Suite (`npm test`):** `5` active test files passed (`16 passed | 2 todo (18)`):
+- **Vitest Test Suite (`npm test`):** `5` active test files passed (`17 passed | 2 todo (19)`):
   - `tests/setup.test.ts`: EN/FR dictionary structure parity and educational disclaimer verification.
   - `tests/steam.test.ts`: IAPWS-IF97 (`iapws-if97@2.8.0`) verification against benchmark tables (`< 0.5%` tolerance; actual error `< 0.02%`):
     - Saturated at $10\text{ kPa}$: $T_{sat} = 45.81\text{ °C}$, $h_f = 191.81\text{ kJ/kg}$, $s_f = 0.6492\text{ kJ/(kg}\cdot\text{K)}$, $h_g = 2583.9\text{ kJ/kg}$, $s_g = 8.1488\text{ kJ/(kg}\cdot\text{K)}$.
     - Superheated at $5\text{ MPa}, 450\text{ °C}$: $h = 3317.0\text{ kJ/kg}$ (benchmark $3317.2\text{ kJ/kg}$, relative diff $0.006\%$), $s = 6.8208\text{ kJ/(kg}\cdot\text{K)}$ (benchmark $6.8210\text{ kJ/(kg}\cdot\text{K)}$, relative diff $0.003\%$).
-  - `tests/brayton.test.ts`: Ideal Brayton efficiency formula, isentropic temperature-pressure relations, ideal gas constant relations, and First-Law energy balance closure (`< 0.1%` required; `0.000%` actual) on compressor, combustor, and gas turbine.
+  - `tests/brayton.test.ts`: Ideal Brayton efficiency formula, isentropic temperature-pressure relations, ideal gas constant relations, First-Law energy balance closure (`< 0.1%` required; `0.000%` actual) on compressor, combustor, and gas turbine, and combustor fuel-to-air mass flow ratio ($\dot{m}_{fuel}/\dot{m}_{air}$) calculation under Law 10.
   - `tests/combined.test.ts`: All 9 state points at default sliders, First-Law energy balance and mass conservation closure on all 8 plant components, Law 9 combined efficiency identity ($\eta_{cc} = \eta_{GT} + (1 - \eta_{GT})\cdot\eta_{HRSG}\cdot\eta_{ST}$), HRSG pinch point violation detection (`PINCH_POINT_VIOLATION`), and extreme slider boundary checks.
   - `tests/audit.test.ts`: Recursive EN/FR key parity, T-s diagram SVG coordinate generation, and 3D pipe segment generation.
   - `tests/textbook-brayton.test.ts` & `tests/textbook-combined.test.ts`: Created with `test.todo` and marked `TEXTBOOK_PENDING` awaiting the user's textbook worked examples.
 
 ---
 
-## 2. Default Operating Parameters (`SPEC.md` Section 4)
+## 2. Default Operating Parameters (`SPEC.md` Section 4 & `src/physics/constants.ts`)
 
-| Parameter | Symbol | Default Value | Unit |
-| --- | --- | --- | --- |
-| Ambient Air Temperature | $T_1$ | $288.15$ ($15.00\text{ °C}$) | K |
-| Ambient Air Pressure | $p_1$ | $101.325$ | kPa |
-| Turbine Inlet Temperature (TIT) | $T_3$ | $1400.00$ ($1126.85\text{ °C}$) | K |
-| Compressor Pressure Ratio | $r_p$ | $15.0$ | - |
-| Air $c_{p,a}$ / $k_a$ | $c_{p,a}, k_a$ | $1.005$ / $1.40$ | kJ/(kg·K) / - |
-| Hot Gas $c_{p,g}$ / $k_g$ | $c_{p,g}, k_g$ | $1.150$ / $1.33$ | kJ/(kg·K) / - |
-| Isentropic Efficiencies | $\eta_c, \eta_{GT}, \eta_{ST}, \eta_p$ | $0.85, 0.88, 0.85, 0.85$ | - |
-| Live Steam Pressure & Temp | $p_8, T_8$ | $5000\text{ kPa}$ ($5\text{ MPa}$), $723.15\text{ K}$ ($450\text{ °C}$) | kPa, K |
-| Condenser Pressure | $p_6 = p_9$ | $10.0$ | kPa |
-| HRSG Pinch Point | $\Delta T_{pinch}$ | $15.0$ | K |
-| Reference Gas Mass Flow Rate | $\dot{m}_{air}$ | $100.00$ | kg/s |
+| Parameter | Symbol | Default Value | Unit | Source / Reference |
+| --- | --- | --- | --- | --- |
+| Ambient Air Temperature | $T_1$ | $288.15$ ($15.00\text{ °C}$) | K | `SPEC.md` Section 4 (ISO 3977 standard ambient) |
+| Ambient Air Pressure | $p_1$ | $101.325$ | kPa | `SPEC.md` Section 4 (ISO 3977 standard ambient) |
+| Turbine Inlet Temperature (TIT) | $T_3$ | $1400.00$ ($1126.85\text{ °C}$) | K | `SPEC.md` Section 4 (slider range $1100\text{–}1700\text{ K}$) |
+| Compressor Pressure Ratio | $r_p$ | $15.0$ | - | `SPEC.md` Section 4 (slider range $8\text{–}30$) |
+| Air $c_{p,a}$ / $k_a$ | $c_{p,a}, k_a$ | $1.005$ / $1.40$ | kJ/(kg·K) / - | `SPEC.md` Section 4 |
+| Hot Gas $c_{p,g}$ / $k_g$ | $c_{p,g}, k_g$ | $1.150$ / $1.33$ | kJ/(kg·K) / - | `SPEC.md` Section 4 |
+| Isentropic Efficiencies | $\eta_c, \eta_{GT}, \eta_{ST}, \eta_p$ | $0.85, 0.88, 0.85, 0.85$ | - | `SPEC.md` Section 4 |
+| Fuel Lower Heating Value | $\text{LHV}$ | $50000$ ($50.0\text{ MJ/kg}$) | kJ/kg | Standard natural gas ($\text{CH}_4$) LHV, Cengel & Boles *Thermodynamics* |
+| Combustion Efficiency | $\eta_{comb}$ | $0.99$ ($99\text{ \%}$) | - | Standard industrial gas turbine combustor efficiency, Cengel & Boles |
+| Live Steam Pressure & Temp | $p_8, T_8$ | $5000\text{ kPa}$ ($5\text{ MPa}$), $723.15\text{ K}$ ($450\text{ °C}$) | kPa, K | `SPEC.md` Section 4 |
+| Condenser Pressure | $p_6 = p_9$ | $10.0$ | kPa | `SPEC.md` Section 4 |
+| HRSG Pinch Point | $\Delta T_{pinch}$ | $15.0$ | K | `SPEC.md` Section 4 |
+| Reference Gas Mass Flow Rate | $\dot{m}_{air}$ | $100.00$ | kg/s | Reference $100\text{ kg/s}$ basis (`src/physics/constants.ts`) |
+
+### Entropy Reference Datums (`T–s` Diagram & State Points)
+
+- **Gas Side (States 1–5):** Uses an arbitrary ideal-gas reference datum $s_1 = 1.0000\text{ kJ/(kg}\cdot\text{K)}$ at ambient inlet conditions ($T_1 = 288.15\text{ K}, p_1 = 101.325\text{ kPa}$), with exact ideal-gas entropy differences $\Delta s = c_p \ln(T_2/T_1) - R \ln(p_2/p_1)$ between successive states.
+- **Water / Steam Side (States 6–9):** Uses the **IAPWS-IF97** standard convention where the specific entropy of saturated liquid water is $s_f = 0.0000\text{ kJ/(kg}\cdot\text{K)}$ at the triple point of water ($T_t = 273.16\text{ K} = 0.01\text{ °C}, p_t = 0.611657\text{ kPa}$).
+- Because gas and steam entropies are measured relative to different reference states, the T–s diagram displays the note: *"Gas and steam entropies use different reference states"* (EN/FR).
 
 ---
 
@@ -90,4 +98,5 @@
 2. **Constant Gas-Path Mass Flow Rate:** Following the 9-state-point steady-flow model where $\Sigma \dot{m}_{in} = \Sigma \dot{m}_{out}$ and $\dot{Q} - \dot{W} = \dot{m}(h_{out} - h_{in})$ apply directly between each component's inlet and outlet state points (`1→2→3→4→5`), the gas path uses a constant reference flow rate $\dot{m}_g = 100\text{ kg/s}$, while fuel mass flow $\dot{m}_f$ is computed from Law 8 ($\dot{Q}_{in} = \dot{m}_f \cdot \text{LHV} \cdot \eta_{comb}$).
 3. **Negligible Pressure Drops:** Combustor, HRSG, and condenser pressure drops are neglected ($p_3 = p_2$, $p_5 = p_4 = p_1$, $p_8 = p_7$, $p_6 = p_9$).
 4. **Single-Pressure Unfired HRSG:** Only one boiler pressure ($5\text{ MPa}$) without reheat or supplemental duct firing is modeled in v1.
-5. **Pending Textbook Validation:** `tests/textbook-brayton.test.ts` and `tests/textbook-combined.test.ts` contain `test.todo` placeholders (`TEXTBOOK_PENDING`) awaiting the user's specific textbook worked problem inputs.
+5. **Economizer Approach Temperature:** Economizer outlet is saturated liquid (zero approach temperature).
+6. **Pending Textbook Validation:** `tests/textbook-brayton.test.ts` and `tests/textbook-combined.test.ts` contain `test.todo` placeholders (`TEXTBOOK_PENDING`) awaiting the user's specific textbook worked problem inputs.

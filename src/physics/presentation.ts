@@ -319,6 +319,9 @@ export interface CycleViewModel {
     etaGt: string;
     etaSt: string;
     etaPump: string;
+    etaComb: string;
+    lhvKJkg: string;
+    lhvMJkg: string;
     steamPressMPa: string;
     steamTempC: string;
     condPressKPa: string;
@@ -380,6 +383,9 @@ export function buildCycleViewModel(result: CombinedCycleResult): CycleViewModel
       etaGt: (parameters.eta_gt * 100).toFixed(0),
       etaSt: (parameters.eta_st * 100).toFixed(0),
       etaPump: (parameters.eta_pump * 100).toFixed(0),
+      etaComb: (parameters.eta_comb * 100).toFixed(0),
+      lhvKJkg: parameters.lhv_kJkg.toFixed(0),
+      lhvMJkg: (parameters.lhv_kJkg / 1000).toFixed(1),
       steamPressMPa: (parameters.p_steam_kPa / 1000).toFixed(1),
       steamTempC: (parameters.T_steam_K - 273.15).toFixed(0),
       condPressKPa: parameters.p_cond_kPa.toFixed(0),

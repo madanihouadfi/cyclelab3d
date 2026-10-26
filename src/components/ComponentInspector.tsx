@@ -99,6 +99,9 @@ export const ComponentInspector: React.FC<ComponentInspectorProps> = ({
               <div className="law-live-box">
                 <span>{t.components.liveCalculation}:</span>
                 <code>{law.liveEquation}</code>
+                {law.showAirStandardNote && (
+                  <small className="law-note">{t.laws.law10.airStandardNote}</small>
+                )}
               </div>
             </article>
           );

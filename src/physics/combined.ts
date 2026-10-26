@@ -202,6 +202,8 @@ export function solveCombinedCycle(
     combinedEfficiency,
     combinedEfficiencyLaw9,
     fuelMassFlow_kgs: brayton.fuelMassFlow_kgs,
+    fuelAirRatio: brayton.fuelAirRatio,
+    fuelAirRatioPct: brayton.fuelAirRatioPct,
     steamMassFlow_kgs: hrsg.steamMassFlow_kgs,
     energyBalances,
   };

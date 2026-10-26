@@ -33,8 +33,8 @@ export const DEFAULT_PARAMETERS: CycleParameters = {
   eta_gt: 0.88, // -
   eta_st: 0.85, // -
   eta_pump: 0.85, // -
-  eta_comb: 0.99, // -
-  lhv_kJkg: 50000, // Natural gas lower heating value [kJ/kg]
+  eta_comb: 0.99, // - (Source: standard industrial GT combustor thermal efficiency, Cengel & Boles)
+  lhv_kJkg: 50000, // kJ/kg (Source: standard natural gas / CH4 lower heating value, Cengel & Boles)
   p_steam_kPa: 5000, // 5 MPa = 5000 kPa
   T_steam_K: 450 + KELVIN_OFFSET, // 450 °C = 723.15 K
   p_cond_kPa: 10, // 10 kPa

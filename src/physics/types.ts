@@ -141,6 +141,10 @@ export interface BraytonCycleResult {
   heatInput_MW: number;
   /** Fuel mass flow rate ṁ_f = Q_in / (LHV · η_comb) [kg/s] */
   fuelMassFlow_kgs: number;
+  /** Fuel-to-air mass flow ratio ṁ_fuel / ṁ_air [-] */
+  fuelAirRatio: number;
+  /** Fuel-to-air mass flow ratio in percent (ṁ_fuel / ṁ_air) * 100 [%] */
+  fuelAirRatioPct: number;
   /** Actual Brayton thermal efficiency η_GT = W_GT,net / Q_in [-] */
   gtEfficiency: number;
   /** Cold-air-standard ideal Brayton efficiency η_ideal = 1 - 1 / rp^((k_a - 1)/k_a) [-] */
@@ -237,6 +241,10 @@ export interface CombinedCycleResult {
   combinedEfficiencyLaw9: number;
   /** Fuel mass flow rate [kg/s] */
   fuelMassFlow_kgs: number;
+  /** Fuel-to-air mass flow ratio ṁ_fuel / ṁ_air [-] */
+  fuelAirRatio: number;
+  /** Fuel-to-air mass flow ratio in percent (ṁ_fuel / ṁ_air) * 100 [%] */
+  fuelAirRatioPct: number;
   /** Steam mass flow rate [kg/s] */
   steamMassFlow_kgs: number;
   /** Component-by-component First-Law and Continuity verification */

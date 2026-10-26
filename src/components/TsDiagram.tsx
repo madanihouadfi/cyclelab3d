@@ -200,6 +200,7 @@ export const TsDiagram: React.FC<TsDiagramProps> = ({ result }) => {
           {t.statePoints.entropy}: {activePoint.formatted.s_kJkgK}
         </span>
       </div>
+      <p className="ts-datum-note">{t.diagram.entropyDatumNote}</p>
     </section>
   );
 };

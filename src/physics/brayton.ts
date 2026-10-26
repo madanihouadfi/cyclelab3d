@@ -241,6 +241,8 @@ export function solveBraytonCycle(params: CycleParameters): BraytonCycleResult {
   const gtNetPower_MW = turb.turbGrossPower_MW - comp.compPower_MW;
   const gtEfficiency = comb.heatInput_MW > 0 ? gtNetPower_MW / comb.heatInput_MW : 0;
   const idealBraytonEfficiency = calcIdealBraytonEfficiency(params.rp, params.k_air);
+  const fuelAirRatio = state1.mDot_kgs > 0 ? comb.fuelMassFlow_kgs / state1.mDot_kgs : 0;
+  const fuelAirRatioPct = fuelAirRatio * 100;
 
   return {
     state1,
@@ -258,6 +260,8 @@ export function solveBraytonCycle(params: CycleParameters): BraytonCycleResult {
     gtNetPower_MW,
     heatInput_MW: comb.heatInput_MW,
     fuelMassFlow_kgs: comb.fuelMassFlow_kgs,
+    fuelAirRatio,
+    fuelAirRatioPct,
     gtEfficiency,
     idealBraytonEfficiency,
   };

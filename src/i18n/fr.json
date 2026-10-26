@@ -23,6 +23,8 @@
     "etaGt": "Rendement isentropique turbine à gaz (η_GT)",
     "etaSt": "Rendement isentropique turbine à vapeur (η_ST)",
     "etaPump": "Rendement isentropique pompe alimentaire (η_p)",
+    "etaComb": "Rendement de combustion (η_comb)",
+    "lhv": "Pouvoir calorifique inférieur (PCI / LHV)",
     "steamPress": "Pression de vapeur vive (p8)",
     "steamTemp": "Température de vapeur vive (T8)",
     "condPress": "Pression au condenseur (p6 = p9)",
@@ -162,7 +164,8 @@
     "law10": {
       "title": "10. Conservation de la masse (équation de continuité)",
       "formula": "Σ ṁ_in = Σ ṁ_out",
-      "explanation": "En régime permanent, la somme des débits massiques entrant dans un volume de contrôle est égale à la somme des débits massiques sortants."
+      "explanation": "En régime permanent, la somme des débits massiques entrant dans un volume de contrôle est égale à la somme des débits massiques sortants.",
+      "airStandardNote": "Hypothèse air-standard : masse de combustible négligée dans la veine gaz"
     }
   },
   "diagram": {
@@ -172,7 +175,8 @@
     "satDomeLegend": "Cloche de saturation eau/vapeur",
     "xAxis": "Entropie massique s [kJ/(kg·K)]",
     "yAxis": "Température T [K]",
-    "hoverHint": "Survolez ou touchez un point d'état pour lire ses coordonnées thermodynamiques exactes."
+    "hoverHint": "Survolez ou touchez un point d'état pour lire ses coordonnées thermodynamiques exactes.",
+    "entropyDatumNote": "Les entropies gaz et vapeur utilisent des états de référence différents"
   },
   "errors": {
     "title": "Limite thermodynamique de fonctionnement atteinte",

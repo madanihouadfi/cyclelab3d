@@ -93,6 +93,18 @@ export const SliderPanel: React.FC<SliderPanelProps> = ({
             </strong>
           </li>
           <li>
+            <span>{t.sliders.etaComb}</span>
+            <strong>
+              {fixedParams.etaComb} {t.units.percent}
+            </strong>
+          </li>
+          <li>
+            <span>{t.sliders.lhv}</span>
+            <strong>
+              {fixedParams.lhvKJkg} {t.units.kJkg}
+            </strong>
+          </li>
+          <li>
             <span>{t.sliders.steamPress}</span>
             <strong>
               {fixedParams.steamPressMPa} {t.units.MPa}

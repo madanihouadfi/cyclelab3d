@@ -436,6 +436,12 @@ body {
   gap: 0.15rem;
 }
 
+.law-note {
+  color: #fcd34d;
+  font-size: 0.72rem;
+  margin-top: 0.2rem;
+}
+
 .diagram-header {
   display: flex;
   justify-content: space-between;
@@ -498,6 +504,13 @@ body {
   border-radius: 0.45rem;
   padding: 0.45rem 0.65rem;
   font-size: 0.76rem;
+}
+
+.ts-datum-note {
+  font-size: 0.72rem;
+  color: #94a3b8;
+  margin-top: 0.4rem;
+  font-style: italic;
 }
 
 .app-footer {

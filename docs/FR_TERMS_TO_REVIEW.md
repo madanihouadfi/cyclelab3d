@@ -13,6 +13,8 @@ Every French technical and thermodynamic term in `src/i18n/fr.json` is listed be
 | `sliders.etaGt` | Gas Turbine Isentropic Eff. (η_GT) | Rendement isentropique turbine à gaz (η_GT) | TAG = *Turbine à gaz*. |
 | `sliders.etaSt` | Steam Turbine Isentropic Eff. (η_ST) | Rendement isentropique turbine à vapeur (η_ST) | TAV = *Turbine à vapeur*. |
 | `sliders.etaPump` | Feedwater Pump Isentropic Eff. (η_p) | Rendement isentropique pompe alimentaire (η_p) | *Pompe alimentaire* = boiler feedwater pump. |
+| `sliders.etaComb` | Combustion Efficiency (η_comb) | Rendement de combustion (η_comb) | Combustor thermal efficiency. |
+| `sliders.lhv` | Fuel Lower Heating Value (LHV) | Pouvoir calorifique inférieur (PCI / LHV) | *PCI* = Pouvoir Calorifique Inférieur. |
 | `sliders.steamPress` | Live Steam Pressure (p8) | Pression de vapeur vive (p8) | *Vapeur vive* = main/live superheated steam entering the turbine. |
 | `sliders.steamTemp` | Live Steam Temperature (T8) | Température de vapeur vive (T8) | Live steam temperature at HRSG superheater outlet. |
 | `sliders.condPress` | Condenser Pressure (p6 = p9) | Pression au condenseur (p6 = p9) | Vacuum pressure in the surface condenser. |
@@ -61,5 +63,7 @@ Every French technical and thermodynamic term in `src/i18n/fr.json` is listed be
 | `laws.law8.title` | Combustion Heat Input | Apport thermique de combustion | Note: LHV in French is *PCI (Pouvoir Calorifique Inférieur)*, noted in explanation. |
 | `laws.law9.title` | Combined Cycle Thermal Efficiency | Rendement thermique du cycle combiné | Combined topping + bottoming efficiency. |
 | `laws.law10.title` | Conservation of Mass (Continuity) | Conservation de la masse (équation de continuité) | Steady-state mass balance. |
+| `laws.law10.airStandardNote` | Air-standard assumption: fuel mass neglected in the gas path | Hypothèse air-standard : masse de combustible négligée dans la veine gaz | *Veine gaz* = gas path in turbomachinery. |
 | `diagram.satDomeLegend` | Water/Steam Saturation Dome | Cloche de saturation eau/vapeur | *Cloche de saturation* = saturation dome on T-s diagram. |
 | `diagram.xAxis` | Specific Entropy s [kJ/(kg·K)] | Entropie massique s [kJ/(kg·K)] | *Entropie massique* = specific entropy. |
+| `diagram.entropyDatumNote` | Gas and steam entropies use different reference states | Les entropies gaz et vapeur utilisent des états de référence différents | *État de référence* = thermodynamic reference datum. |
