@@ -19,7 +19,11 @@ export const SliderPanel: React.FC<SliderPanelProps> = ({
   const { sliders, fixedParams } = vm;
 
   return (
-    <section className="panel-card" aria-label={t.sliders.title}>
+    <section className="panel-card liquid-glass" aria-label={t.sliders.title}>
+      <div className="panel-header-row">
+        <span className="panel-mono-idx" aria-hidden="true">02 // CONTROLS</span>
+        <span className="panel-status-tag" aria-hidden="true">LIVE</span>
+      </div>
       <h2 className="panel-heading">{t.sliders.title}</h2>
 
       {!result.ok && result.error && (

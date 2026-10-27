@@ -24,6 +24,17 @@
     "lightMode": "Thème clair",
     "darkMode": "Thème sombre"
   },
+  "hero": {
+    "eyebrow": "01 // BANC D'ESSAI THERMODYNAMIQUE CYCLE COMBINÉ",
+    "titleLead": "La précision",
+    "titleAccent": "thermodynamique,",
+    "titleTrail": "simulée en temps réel.",
+    "subtitle": "Solveur couplé Brayton–Rankine mono-arbre avec tables vapeur IAPWS-IF97 et 10 lois thermodynamiques en direct.",
+    "specBadge1": "ISO 2314 · 3000 TR/MIN",
+    "specBadge2": "VAPEUR IAPWS-IF97",
+    "ctaDiagram": "Diagramme T–s",
+    "ctaShowcase": "Scène 3D plein écran"
+  },
   "viewModes": {
     "ariaLabel": "Mode d'affichage 3D",
     "realistic": "Réaliste",

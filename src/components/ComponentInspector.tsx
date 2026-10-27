@@ -35,9 +35,12 @@ export const ComponentInspector: React.FC<ComponentInspectorProps> = ({
   const outletState = vm.formattedStates[meta.outletStateId];
 
   return (
-    <section className="panel-card" aria-label={t.components.selectedTitle}>
+    <section className="panel-card liquid-glass" aria-label={t.components.selectedTitle}>
       <div className="inspector-header">
-        <span className="inspector-badge">{t.components.selectedTitle}</span>
+        <div className="panel-header-row">
+          <span className="inspector-badge">03 // {t.components.selectedTitle}</span>
+          <span className="panel-status-tag" aria-hidden="true">STATE {inletState.idStr}→{outletState.idStr}</span>
+        </div>
         <h2 className="panel-heading">{t.components[selectedComponent].name}</h2>
         <p className="inspector-role">{t.components[selectedComponent].role}</p>
         {selectedComponent === 'generator' && (

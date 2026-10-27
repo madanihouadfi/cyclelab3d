@@ -24,6 +24,17 @@
     "lightMode": "Light mode",
     "darkMode": "Dark mode"
   },
+  "hero": {
+    "eyebrow": "01 // COMBINED-CYCLE THERMODYNAMIC WORKBENCH",
+    "titleLead": "Thermodynamic",
+    "titleAccent": "precision,",
+    "titleTrail": "engineered in real time.",
+    "subtitle": "Coupled Brayton–Rankine single-shaft turbomachinery solver with IAPWS-IF97 steam properties and 10 live governing laws.",
+    "specBadge1": "ISO 2314 · 3000 RPM",
+    "specBadge2": "IAPWS-IF97 STEAM",
+    "ctaDiagram": "Open T–s Diagram",
+    "ctaShowcase": "Fullscreen 3D Stage"
+  },
   "viewModes": {
     "ariaLabel": "3D View Mode",
     "realistic": "Realistic",

@@ -32,8 +32,12 @@ export const TopBar: React.FC<TopBarProps> = ({
   };
 
   return (
-    <header className="topbar-panel">
+    <header className="topbar-panel liquid-glass in-down">
       <nav className="breadcrumb-trail" aria-label={t.topbar.breadcrumbAria}>
+        <span className="status-live-pill" aria-hidden="true">
+          <span className="status-live-dot" />
+          50 HZ · SYNC
+        </span>
         <span className="crumb-root">{t.appTitle}</span>
         <span className="crumb-sep" aria-hidden="true">
           ›
@@ -89,10 +93,13 @@ export const TopBar: React.FC<TopBarProps> = ({
         {/* White Primary Action Button: Reset to defaults */}
         <button
           type="button"
-          className="primary-reset-btn"
+          className="primary-reset-btn btn-halo"
           onClick={onResetDefaults}
         >
-          {t.topbar.resetDefaults}
+          <span>{t.topbar.resetDefaults}</span>
+          <span className="btn-reset-arrow" aria-hidden="true">
+            ↺
+          </span>
         </button>
       </div>
     </header>

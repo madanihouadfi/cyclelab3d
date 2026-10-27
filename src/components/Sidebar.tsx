@@ -27,19 +27,20 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   const navItems: {
     id: NavSectionId;
+    idx: string;
     label: string;
     icon: React.ReactNode;
   }[] = [
-    { id: 'plant', label: t.nav.plant, icon: <IconPlant /> },
-    { id: 'parameters', label: t.nav.parameters, icon: <IconParameters /> },
-    { id: 'laws', label: t.nav.laws, icon: <IconLaws /> },
-    { id: 'calculations', label: t.nav.calculations, icon: <IconCalculations /> },
-    { id: 'diagram', label: t.nav.diagram, icon: <IconDiagram /> },
-    { id: 'results', label: t.nav.results, icon: <IconResults /> },
+    { id: 'plant', idx: '01', label: t.nav.plant, icon: <IconPlant /> },
+    { id: 'parameters', idx: '02', label: t.nav.parameters, icon: <IconParameters /> },
+    { id: 'laws', idx: '03', label: t.nav.laws, icon: <IconLaws /> },
+    { id: 'calculations', idx: '04', label: t.nav.calculations, icon: <IconCalculations /> },
+    { id: 'diagram', idx: '05', label: t.nav.diagram, icon: <IconDiagram /> },
+    { id: 'results', idx: '06', label: t.nav.results, icon: <IconResults /> },
   ];
 
   return (
-    <aside className="sidebar-panel" aria-label={t.nav.ariaLabel}>
+    <aside className="sidebar-panel liquid-glass in-blur" aria-label={t.nav.ariaLabel}>
       <CycleLabLogo />
 
       <nav className="sidebar-nav" role="navigation" aria-label={t.nav.ariaLabel}>
@@ -53,7 +54,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 aria-current={isActive ? 'page' : undefined}
                 onClick={() => onSelectSection(item.id)}
               >
-                <span className="sidebar-nav-label">{item.label}</span>
+                <span className="sidebar-nav-left">
+                  <span className="sidebar-nav-idx" aria-hidden="true">
+                    {item.idx}
+                  </span>
+                  <span className="sidebar-nav-label">{item.label}</span>
+                </span>
                 <span className="sidebar-nav-icon">{item.icon}</span>
               </button>
               {item.id === 'plant' && (
@@ -67,6 +73,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
       </nav>
 
       <div className="sidebar-footer-card">
+        <div className="sidebar-footer-meta" aria-hidden="true">
+          <span>IAPWS-IF97</span>
+          <span>10 LAWS</span>
+        </div>
         <strong className="sidebar-footer-title">{t.nav.educationalCardTitle}</strong>
         <p className="sidebar-disclaimer-text">{t.disclaimer}</p>
       </div>

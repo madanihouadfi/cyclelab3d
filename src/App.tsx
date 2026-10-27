@@ -166,11 +166,16 @@ export const App: React.FC = () => {
     );
   };
 
+  const showHeroBanner =
+    !showcaseMode && (activeSection === 'plant' || activeSection === 'parameters');
+
   return (
     <div
       className={`app-shell ${showcaseMode ? 'app-shell-showcase' : ''}`}
       data-theme={theme}
     >
+      <div className="page-grain" aria-hidden="true" />
+
       {!showcaseMode && (
         <Sidebar
           activeSection={activeSection}
@@ -188,6 +193,47 @@ export const App: React.FC = () => {
           onResetDefaults={handleResetDefaults}
         />
 
+        {showHeroBanner && (
+          <section className="studio-hero-banner liquid-glass in-blur" aria-label={t.appTitle}>
+            <div className="studio-hero-copy">
+              <div className="studio-eyebrow-row">
+                <span className="studio-eyebrow-badge">
+                  <span className="studio-pulse-dot" aria-hidden="true" />
+                  {t.hero.eyebrow}
+                </span>
+                <span className="studio-spec-chip">{t.hero.specBadge1}</span>
+                <span className="studio-spec-chip">{t.hero.specBadge2}</span>
+              </div>
+              <h1 className="studio-hero-headline">
+                {t.hero.titleLead} <em>{t.hero.titleAccent}</em> {t.hero.titleTrail}
+              </h1>
+              <p className="studio-hero-sub">{t.hero.subtitle}</p>
+            </div>
+            <div className="studio-hero-actions">
+              <button
+                type="button"
+                className="studio-btn-ghost"
+                onClick={() => handleSelectSection('diagram')}
+              >
+                <span>{t.hero.ctaDiagram}</span>
+                <span className="studio-btn-arrow" aria-hidden="true">
+                  ↗
+                </span>
+              </button>
+              <button
+                type="button"
+                className="studio-btn-solid btn-halo"
+                onClick={() => setShowcaseMode(true)}
+              >
+                <span>{t.hero.ctaShowcase}</span>
+                <span className="studio-btn-chip" aria-hidden="true">
+                  ↗
+                </span>
+              </button>
+            </div>
+          </section>
+        )}
+
         {renderCenterWorkspace()}
 
         {!showcaseMode && <KpiStripCards vm={vm} />}
@@ -195,7 +241,7 @@ export const App: React.FC = () => {
 
       {!showcaseMode && (
         <aside
-          className={`side-panel bottom-sheet ${sheetExpanded ? 'bottom-sheet-expanded' : ''}`}
+          className={`side-panel bottom-sheet in-fade ${sheetExpanded ? 'bottom-sheet-expanded' : ''}`}
           aria-label={t.nav[activeSection]}
         >
           <button

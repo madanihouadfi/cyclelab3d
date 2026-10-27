@@ -743,7 +743,7 @@ export const PlantScene3D: React.FC<PlantScene3DProps> = ({
 
   return (
     <section
-      className={`scene-card ${showcaseMode ? 'scene-card-showcase' : ''}`}
+      className={`scene-card liquid-glass in-blur ${showcaseMode ? 'scene-card-showcase' : ''}`}
       aria-label={t.appTitle}
     >
       <div

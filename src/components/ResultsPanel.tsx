@@ -18,32 +18,52 @@ export const KpiStripCards: React.FC<ResultsPanelProps> = ({ vm }) => {
   const { summary } = vm;
 
   return (
-    <section className="kpi-strip-row" aria-label={t.results.title}>
-      <div className="kpi-strip-card">
+    <section className="kpi-strip-row in-fade" aria-label={t.results.title}>
+      <div className="kpi-strip-card liquid-glass">
+        <div className="kpi-card-top">
+          <span className="kpi-mono-tag" aria-hidden="true">01 // BRAYTON</span>
+          <span className="kpi-dot" aria-hidden="true" />
+        </div>
         <span className="kpi-label">{t.results.gtPower}</span>
         <strong className="kpi-strip-value">
           {summary.gtPowerMW} <small>{t.units.MW}</small>
         </strong>
       </div>
-      <div className="kpi-strip-card">
+      <div className="kpi-strip-card liquid-glass">
+        <div className="kpi-card-top">
+          <span className="kpi-mono-tag" aria-hidden="true">02 // RANKINE</span>
+          <span className="kpi-dot" aria-hidden="true" />
+        </div>
         <span className="kpi-label">{t.results.stPower}</span>
         <strong className="kpi-strip-value">
           {summary.stPowerMW} <small>{t.units.MW}</small>
         </strong>
       </div>
-      <div className="kpi-strip-card kpi-strip-highlight">
+      <div className="kpi-strip-card kpi-strip-highlight liquid-glass">
+        <div className="kpi-card-top">
+          <span className="kpi-mono-tag kpi-mono-accent" aria-hidden="true">03 // NET OUTPUT</span>
+          <span className="kpi-dot kpi-dot-accent" aria-hidden="true" />
+        </div>
         <span className="kpi-label">{t.results.netPower}</span>
         <strong className="kpi-strip-value">
           {summary.netPowerMW} <small>{t.units.MW}</small>
         </strong>
       </div>
-      <div className="kpi-strip-card">
+      <div className="kpi-strip-card liquid-glass">
+        <div className="kpi-card-top">
+          <span className="kpi-mono-tag" aria-hidden="true">04 // TOPPING η</span>
+          <span className="kpi-dot" aria-hidden="true" />
+        </div>
         <span className="kpi-label">{t.results.gtEfficiency}</span>
         <strong className="kpi-strip-value">
           {summary.gtEfficiencyPct} <small>{t.units.percent}</small>
         </strong>
       </div>
-      <div className="kpi-strip-card kpi-strip-highlight">
+      <div className="kpi-strip-card kpi-strip-highlight liquid-glass">
+        <div className="kpi-card-top">
+          <span className="kpi-mono-tag kpi-mono-accent" aria-hidden="true">05 // COMBINED η</span>
+          <span className="kpi-dot kpi-dot-accent" aria-hidden="true" />
+        </div>
         <span className="kpi-label">{t.results.ccEfficiency}</span>
         <strong className="kpi-strip-value">
           {summary.ccEfficiencyPct} <small>{t.units.percent}</small>
