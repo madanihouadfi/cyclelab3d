@@ -1624,6 +1624,398 @@ body {
   font-style: italic;
 }
 
+/* Viewport Cutaway Chip, Speed Pills, Stage Telemetry HUD & Guided Tour Controls */
+.viewport-chip-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  background: var(--panel-2);
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0.26rem 0.68rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s var(--ease-apple);
+}
+
+.viewport-chip-btn:hover {
+  color: var(--text-primary);
+  border-color: var(--accent);
+}
+
+.viewport-chip-btn-active {
+  background: var(--accent-soft);
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.speed-pill-group {
+  display: inline-flex;
+  align-items: center;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0.12rem;
+  gap: 0.1rem;
+}
+
+.speed-pill-btn {
+  background: transparent;
+  color: var(--text-muted);
+  border: none;
+  border-radius: 999px;
+  padding: 0.16rem 0.44rem;
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.18s var(--ease-apple);
+}
+
+.speed-pill-btn-active {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+.stage-telemetry-hud {
+  position: absolute;
+  top: 0.75rem;
+  left: 0.75rem;
+  z-index: 22;
+  max-width: 285px;
+  background: rgba(12, 15, 21, 0.84);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-left: 3px solid var(--accent);
+  border-radius: 12px;
+  padding: 0.55rem 0.72rem;
+  pointer-events: none;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+}
+
+.stage-hud-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.18rem;
+}
+
+.stage-hud-step {
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.stage-hud-temp {
+  font-family: var(--font-mono);
+  font-size: 0.64rem;
+  font-weight: 700;
+  color: #fde68a;
+  font-variant-numeric: tabular-nums;
+}
+
+.stage-hud-title {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #f8fafc;
+  margin-bottom: 0.15rem;
+}
+
+.stage-hud-role {
+  font-size: 0.68rem;
+  color: #cbd5e1;
+  line-height: 1.32;
+  margin-bottom: 0.3rem;
+}
+
+.stage-hud-law {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.64rem;
+  color: #94a3b8;
+}
+
+.stage-hud-law code {
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  color: var(--accent);
+  background: rgba(45, 212, 191, 0.12);
+  padding: 0.08rem 0.36rem;
+  border-radius: 5px;
+}
+
+.guided-tour-controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.tour-step-btn,
+.tour-auto-btn {
+  background: var(--panel-2);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0.28rem 0.62rem;
+  font-size: 0.71rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.18s var(--ease-apple);
+}
+
+.tour-step-btn:hover,
+.tour-auto-btn:hover {
+  border-color: var(--accent);
+}
+
+.tour-auto-btn-active {
+  background: var(--accent);
+  color: var(--accent-ink);
+  border-color: var(--accent);
+  font-weight: 700;
+}
+
+/* Operating Scenario Presets in SliderPanel */
+.preset-block {
+  margin-bottom: 0.85rem;
+}
+
+.preset-block-label {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-bottom: 0.38rem;
+}
+
+.preset-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.4rem;
+}
+
+.preset-chip {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.1rem;
+  background: var(--panel-2);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0.38rem 0.55rem;
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.18s var(--ease-apple);
+}
+
+.preset-chip:hover {
+  border-color: var(--accent);
+}
+
+.preset-chip-active {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+}
+
+.preset-chip-title {
+  font-size: 0.71rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.preset-chip-active .preset-chip-title {
+  color: var(--accent);
+}
+
+.preset-chip-meta {
+  font-family: var(--font-mono);
+  font-size: 0.63rem;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Calculations Workbench & Sankey Energy Partition Bar */
+.calc-workbench {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.sankey-card {
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 0.78rem 0.9rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.62rem;
+}
+
+.sankey-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.sankey-title {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.sankey-sub {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
+.sankey-qin-pill {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  background: var(--bg);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0.22rem 0.65rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.sankey-qin-pill strong {
+  color: var(--accent);
+}
+
+.sankey-bar {
+  display: flex;
+  width: 100%;
+  height: 28px;
+  border-radius: 999px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: #0b0e14;
+}
+
+.sankey-seg {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: #041311;
+  transition: width 0.3s var(--ease-apple);
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.sankey-seg-gt {
+  background: linear-gradient(90deg, #f97316, #fb923c);
+  color: #1f0c02;
+}
+
+.sankey-seg-st {
+  background: linear-gradient(90deg, #14b8a6, #2dd4bf);
+  color: #042f2a;
+}
+
+.sankey-seg-cond {
+  background: linear-gradient(90deg, #3b82f6, #60a5fa);
+  color: #081c3a;
+}
+
+.sankey-seg-stack {
+  background: linear-gradient(90deg, #64748b, #94a3b8);
+  color: #0f172a;
+}
+
+.sankey-legend-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+
+.sankey-legend-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.42rem;
+  font-size: 0.71rem;
+}
+
+.sankey-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  margin-top: 0.2rem;
+  flex-shrink: 0;
+}
+
+.sankey-leg-label {
+  display: block;
+  color: var(--text-muted);
+  font-size: 0.68rem;
+}
+
+.sankey-leg-val {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.calc-section-block {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.calc-steps-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.55rem;
+}
+
+.calc-step-card {
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 13px;
+  padding: 0.65rem 0.78rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.calc-step-header {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.calc-step-idx {
+  font-family: var(--font-mono);
+  font-size: 0.64rem;
+  font-weight: 700;
+  color: var(--accent);
+  background: var(--accent-soft);
+  border: 1px solid rgba(45, 212, 191, 0.3);
+  border-radius: 6px;
+  padding: 0.08rem 0.38rem;
+}
+
+.calc-step-title {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
 /* Responsive Tablet & Phone Layout (<= 768px): Bottom Tab Bar + Bottom Sheet */
 @media (max-width: 1080px) {
   .app-shell {
@@ -1632,6 +2024,11 @@ body {
 
   .kpi-strip-row {
     grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .sankey-legend-grid,
+  .calc-steps-grid {
+    grid-template-columns: 1fr;
   }
 }
 

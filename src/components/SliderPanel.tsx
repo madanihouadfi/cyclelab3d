@@ -18,6 +18,38 @@ export const SliderPanel: React.FC<SliderPanelProps> = ({
   const { t } = useLanguage();
   const { sliders, fixedParams } = vm;
 
+  const presets = [
+    {
+      id: 'nominal',
+      label: t.sliders.presetNominal,
+      t3: 1400,
+      rp: 15,
+    },
+    {
+      id: 'peak',
+      label: t.sliders.presetPeak,
+      t3: 1650,
+      rp: 22,
+    },
+    {
+      id: 'exhaust',
+      label: t.sliders.presetHighExhaust,
+      t3: 1500,
+      rp: 10,
+    },
+    {
+      id: 'pinch',
+      label: t.sliders.presetPinchLimit,
+      t3: 1260,
+      rp: 24,
+    },
+  ];
+
+  const handleApplyPreset = (t3: number, rp: number) => {
+    onChangeT3(t3);
+    onChangeRp(rp);
+  };
+
   return (
     <section className="panel-card liquid-glass" aria-label={t.sliders.title}>
       <div className="panel-header-row">
@@ -32,6 +64,30 @@ export const SliderPanel: React.FC<SliderPanelProps> = ({
           <p>{t.errors[result.error.code]}</p>
         </div>
       )}
+
+      <div className="preset-block">
+        <span className="preset-block-label">{t.sliders.presetsTitle}</span>
+        <div className="preset-grid">
+          {presets.map((pr) => {
+            const isActive =
+              Math.abs(sliders.T3_value - pr.t3) < 5 &&
+              Math.abs(sliders.rp_value - pr.rp) < 0.3;
+            return (
+              <button
+                key={pr.id}
+                type="button"
+                className={`preset-chip ${isActive ? 'preset-chip-active' : ''}`}
+                onClick={() => handleApplyPreset(pr.t3, pr.rp)}
+              >
+                <span className="preset-chip-title">{pr.label}</span>
+                <span className="preset-chip-meta">
+                  {pr.t3} K · rp {pr.rp}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
 
       <div className="slider-group">
         <div className="slider-header">

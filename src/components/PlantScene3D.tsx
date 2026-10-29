@@ -6,6 +6,7 @@ import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 import { useLanguage } from '../i18n/LanguageContext';
 import {
+  evaluateComponentLaws,
   PLANT_COMPONENTS,
   type CombinedCycleResult,
   type ComponentId,
@@ -56,6 +57,17 @@ interface PlantScene3DProps {
   onChangeViewMode: (mode: ViewMode) => void;
   resetSignal: number;
 }
+
+const TOUR_SEQUENCE: ComponentId[] = [
+  'compressor',
+  'combustor',
+  'gasTurbine',
+  'hrsg',
+  'steamTurbine',
+  'condenser',
+  'pump',
+  'generator',
+];
 
 class CanvasErrorBoundary extends React.Component<
   { children: React.ReactNode },
@@ -142,7 +154,7 @@ const CameraFocusController: React.FC<{
   const animRemainingRef = useRef(0);
 
   useEffect(() => {
-    animRemainingRef.current = 1.1;
+    animRemainingRef.current = 1.25;
   }, [desiredPos, desiredTarget, resetCounter]);
 
   useEffect(() => {
@@ -164,7 +176,7 @@ const CameraFocusController: React.FC<{
     if (animRemainingRef.current <= 0) return;
     animRemainingRef.current = Math.max(0, animRemainingRef.current - delta);
 
-    const step = Math.min(1, delta * 5.5);
+    const step = 1 - Math.exp(-5.8 * delta);
     camera.position.lerp(desiredPos, step);
     if (controlsRef.current) {
       controlsRef.current.target.lerp(desiredTarget, step);
@@ -179,13 +191,17 @@ const CameraFocusController: React.FC<{
  * Single continuous synchronous shaft with bolted couplings merged into 2 draw calls.
  * Spans Steam Turbine (-8.6) – Generator (-5.2) – Compressor (-1.6) – Combustor (0.8) – Gas Turbine (3.2).
  */
-const SynchronousShaft: React.FC<{ angularSpeed: number }> = ({ angularSpeed }) => {
+const SynchronousShaft: React.FC<{ angularSpeed: number; speedMultiplier: number }> = ({
+  angularSpeed,
+  speedMultiplier,
+}) => {
   const shaftGroupRef = useRef<THREE.Group>(null);
 
   useFrame((_, delta) => {
-    if (shaftGroupRef.current && angularSpeed > 0) {
+    const effective = angularSpeed * speedMultiplier;
+    if (shaftGroupRef.current && effective > 0) {
       shaftGroupRef.current.rotation.x =
-        (shaftGroupRef.current.rotation.x + delta * angularSpeed) % (Math.PI * 2);
+        (shaftGroupRef.current.rotation.x + delta * effective) % (Math.PI * 2);
     }
   });
 
@@ -239,8 +255,7 @@ const SynchronousShaft: React.FC<{ angularSpeed: number }> = ({ angularSpeed }) 
 };
 
 /**
- * Builds an orthogonal (90° right-angle) CurvePath with smooth quarter-circle elbows
- * instead of wide diagonal splines.
+ * Builds an orthogonal (90° right-angle) CurvePath with smooth quarter-circle elbows.
  */
 function buildOrthogonalElbowCurve(waypoints: [number, number, number][]): THREE.CurvePath<THREE.Vector3> {
   const path = new THREE.CurvePath<THREE.Vector3>();
@@ -287,6 +302,7 @@ interface IndustrialPipeWithParticlesProps {
   pipeColorMode: PipeColorMode;
   viewMode: ViewMode;
   qualityMode: QualityMode;
+  speedMultiplier: number;
 }
 
 const IndustrialPipeWithParticles: React.FC<IndustrialPipeWithParticlesProps> = ({
@@ -294,50 +310,58 @@ const IndustrialPipeWithParticles: React.FC<IndustrialPipeWithParticlesProps> = 
   pipeColorMode,
   viewMode,
   qualityMode,
+  speedMultiplier,
 }) => {
   const instancedRef = useRef<THREE.InstancedMesh>(null);
   const phaseOffsetRef = useRef(0);
-  const particleCount = qualityMode === 'high' ? 28 : 14;
+  const particleCount = qualityMode === 'high' ? 32 : 16;
   const effectiveColorMode: PipeColorMode =
     viewMode === 'temperature' ? 'temperature' : pipeColorMode;
   const isXray = viewMode === 'xray';
   const isInternalGasPath = seg.loop === 'gas';
 
-  const { curve, tubeGeo, fittingsGeo } = useMemo(() => {
+  const { curve, tubeGeo, coreGeo, fittingsGeo } = useMemo(() => {
     const c = buildOrthogonalElbowCurve(seg.waypoints);
-    const tubularSegments = qualityMode === 'high' ? 44 : 22;
+    const tubularSegments = qualityMode === 'high' ? 48 : 24;
     const radialSegments = qualityMode === 'high' ? 12 : 8;
-    const pipeRadius = isInternalGasPath ? 0.068 : 0.115;
+    const pipeRadius = isInternalGasPath ? 0.075 : 0.12;
     const g = new THREE.TubeGeometry(c, tubularSegments, pipeRadius, radialSegments, false);
+    const innerCore = new THREE.TubeGeometry(c, tubularSegments, pipeRadius * 0.34, 6, false);
 
     const pts = seg.waypoints.map((w) => new THREE.Vector3(...w));
     const sVec = pts[0];
     const eVec = pts[pts.length - 1];
     const totalSpan = Math.max(0.001, sVec.distanceTo(eVec));
-    const posAttr = g.attributes.position;
-    const colors = new Float32Array(posAttr.count * 3);
-    const tmpVec = new THREE.Vector3();
-    const tmpColor = new THREE.Color();
 
-    for (let i = 0; i < posAttr.count; i++) {
-      if (effectiveColorMode === 'service') {
-        tmpColor.set(seg.serviceColorHex);
-      } else {
-        tmpVec.fromBufferAttribute(posAttr, i);
-        const u = Math.max(0, Math.min(1, tmpVec.distanceTo(sVec) / totalSpan));
-        const localT_K = seg.inletT_K + u * (seg.outletT_K - seg.inletT_K);
-        tmpColor.set(temperatureToHexColor(localT_K));
+    const applyVertexColors = (geom: THREE.BufferGeometry) => {
+      const posAttr = geom.attributes.position;
+      const colors = new Float32Array(posAttr.count * 3);
+      const tmpVec = new THREE.Vector3();
+      const tmpColor = new THREE.Color();
+
+      for (let i = 0; i < posAttr.count; i++) {
+        if (effectiveColorMode === 'service') {
+          tmpColor.set(seg.serviceColorHex);
+        } else {
+          tmpVec.fromBufferAttribute(posAttr, i);
+          const u = Math.max(0, Math.min(1, tmpVec.distanceTo(sVec) / totalSpan));
+          const localT_K = seg.inletT_K + u * (seg.outletT_K - seg.inletT_K);
+          tmpColor.set(temperatureToHexColor(localT_K));
+        }
+        colors[i * 3] = tmpColor.r;
+        colors[i * 3 + 1] = tmpColor.g;
+        colors[i * 3 + 2] = tmpColor.b;
       }
-      colors[i * 3] = tmpColor.r;
-      colors[i * 3 + 1] = tmpColor.g;
-      colors[i * 3 + 2] = tmpColor.b;
-    }
-    g.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+      geom.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+    };
+
+    applyVertexColors(g);
+    applyVertexColors(innerCore);
 
     const fitParts: THREE.BufferGeometry[] = [];
     if (!isInternalGasPath) {
       for (const wp of pts) {
-        const collar = new THREE.SphereGeometry(0.155, 10, 10);
+        const collar = new THREE.SphereGeometry(0.158, 10, 10);
         collar.translate(wp.x, wp.y, wp.z);
         fitParts.push(collar);
       }
@@ -367,6 +391,7 @@ const IndustrialPipeWithParticles: React.FC<IndustrialPipeWithParticlesProps> = 
     return {
       curve: c,
       tubeGeo: g,
+      coreGeo: innerCore,
       fittingsGeo: mergeStaticParts(fitParts),
     };
   }, [
@@ -383,9 +408,10 @@ const IndustrialPipeWithParticles: React.FC<IndustrialPipeWithParticlesProps> = 
   useEffect(() => {
     return () => {
       tubeGeo.dispose();
+      coreGeo.dispose();
       fittingsGeo.dispose();
     };
-  }, [tubeGeo, fittingsGeo]);
+  }, [tubeGeo, coreGeo, fittingsGeo]);
 
   const particleColorHex = useMemo(() => {
     if (seg.particleStyle === 'liquid-water') return '#38bdf8';
@@ -402,16 +428,17 @@ const IndustrialPipeWithParticles: React.FC<IndustrialPipeWithParticlesProps> = 
     const mesh = instancedRef.current;
     if (!mesh) return;
 
-    if (seg.particleSpeed > 0) {
-      phaseOffsetRef.current = (phaseOffsetRef.current + delta * seg.particleSpeed) % 1;
+    const effectiveSpeed = seg.particleSpeed * speedMultiplier;
+    if (effectiveSpeed > 0) {
+      phaseOffsetRef.current = (phaseOffsetRef.current + delta * effectiveSpeed) % 1;
     }
 
     const lenStretch =
       seg.particleStyle === 'superheated-steam'
-        ? 1.55
+        ? 1.75
         : seg.particleStyle === 'gas'
-          ? 1.35
-          : 1.05;
+          ? 1.55
+          : 1.15;
 
     for (let i = 0; i < particleCount; i++) {
       const t = (phaseOffsetRef.current + i / particleCount) % 1;
@@ -421,7 +448,7 @@ const IndustrialPipeWithParticles: React.FC<IndustrialPipeWithParticlesProps> = 
       dummy.position.copy(pt);
       quat.setFromUnitVectors(upAxis, tangent);
       dummy.quaternion.copy(quat);
-      const pulse = 0.88 + 0.24 * Math.sin((t * Math.PI * 4) + i);
+      const pulse = 0.85 + 0.28 * Math.sin(t * Math.PI * 6 + i);
       dummy.scale.set(pulse, pulse * lenStretch, pulse);
       dummy.updateMatrix();
       mesh.setMatrixAt(i, dummy.matrix);
@@ -431,15 +458,25 @@ const IndustrialPipeWithParticles: React.FC<IndustrialPipeWithParticlesProps> = 
 
   return (
     <group>
-      {/* Insulated metallic pipe body or internal gas streamline core */}
-      <mesh castShadow={!isInternalGasPath} geometry={tubeGeo}>
+      {/* Translucent cutaway pipe shell with depthWrite=false so internal streamline flow is always crystal clear */}
+      <mesh geometry={tubeGeo} renderOrder={1}>
         <meshStandardMaterial
           vertexColors
-          metalness={isInternalGasPath ? 0.25 : 0.58}
-          roughness={isInternalGasPath ? 0.4 : 0.26}
+          metalness={isInternalGasPath ? 0.2 : 0.45}
+          roughness={isInternalGasPath ? 0.35 : 0.22}
           wireframe={isXray}
           transparent
-          opacity={isXray ? 0.34 : isInternalGasPath ? 0.36 : 0.68}
+          opacity={isXray ? 0.24 : isInternalGasPath ? 0.25 : 0.36}
+          depthWrite={false}
+        />
+      </mesh>
+      {/* Inner luminous fluid streamline core */}
+      <mesh geometry={coreGeo} renderOrder={2}>
+        <meshBasicMaterial
+          vertexColors
+          transparent
+          opacity={isXray ? 0.4 : 0.52}
+          depthWrite={false}
         />
       </mesh>
       {/* Merged pipe flanges & inline valve */}
@@ -455,9 +492,14 @@ const IndustrialPipeWithParticles: React.FC<IndustrialPipeWithParticlesProps> = 
           />
         </mesh>
       )}
-      {/* Dense Streamline Flow Pulses moving along the exact thermodynamic flow path */}
-      <instancedMesh ref={instancedRef} args={[undefined, undefined, particleCount]}>
-        <coneGeometry args={[0.082, 0.26, 10]} />
+      {/* High-visibility directional streamline pulses moving along the thermodynamic flow path */}
+      <instancedMesh
+        ref={instancedRef}
+        args={[undefined, undefined, particleCount]}
+        renderOrder={4}
+        frustumCulled={false}
+      >
+        <coneGeometry args={[0.076, 0.26, 12]} />
         <meshBasicMaterial color={particleColorHex} />
       </instancedMesh>
     </group>
@@ -465,7 +507,7 @@ const IndustrialPipeWithParticles: React.FC<IndustrialPipeWithParticlesProps> = 
 };
 
 /**
- * Rising plume for both HRSG exhaust stack and Cooling Tower vapor cloud, plus Heat Shimmer.
+ * Organic volumetric-style rising plume for both HRSG exhaust stack and Cooling Tower vapor cloud, plus Heat Shimmer.
  */
 const PlumeAndShimmerEffects: React.FC<{
   stackPlume: StackPlumeParams;
@@ -473,27 +515,31 @@ const PlumeAndShimmerEffects: React.FC<{
   heatShimmer: HeatShimmerParams;
   showScenery: boolean;
   qualityMode: QualityMode;
-}> = ({ stackPlume, coolingPlume, heatShimmer, showScenery, qualityMode }) => {
+  speedMultiplier: number;
+}> = ({ stackPlume, coolingPlume, heatShimmer, showScenery, qualityMode, speedMultiplier }) => {
   const stackRef = useRef<THREE.InstancedMesh>(null);
   const coolRef = useRef<THREE.InstancedMesh>(null);
   const shimmerRef = useRef<THREE.InstancedMesh>(null);
   const phaseRef = useRef(0);
-  const puffCount = qualityMode === 'high' ? 14 : 7;
+  const puffCount = qualityMode === 'high' ? 18 : 9;
   const dummy = useMemo(() => new THREE.Object3D(), []);
 
   useFrame((_, delta) => {
-    phaseRef.current = (phaseRef.current + delta * 0.45) % 1;
+    phaseRef.current = (phaseRef.current + delta * 0.42 * speedMultiplier) % 100;
 
     if (stackRef.current) {
       const [bx, by, bz] = stackPlume.stackTopPosition;
+      const speed = stackPlume.riseSpeed || 0.02;
       for (let i = 0; i < puffCount; i++) {
-        const u = (phaseRef.current * (stackPlume.riseSpeed || 0.01) + i / puffCount) % 1;
-        const y = by + u * 2.2;
-        const swayX = Math.sin(u * Math.PI * 2 + i) * 0.2 * u;
-        const swayZ = Math.cos(u * Math.PI * 2 + i) * 0.16 * u;
-        const s = 0.48 + u * 1.35 * stackPlume.normalizedStackTemp;
+        const u = ((phaseRef.current * speed) + i / puffCount) % 1;
+        const y = by + u * 2.6;
+        const angle = u * Math.PI * 3 + i * 1.3;
+        const radius = 0.08 + u * 0.38;
+        const swayX = Math.sin(angle) * radius;
+        const swayZ = Math.cos(angle) * radius * 0.8;
+        const s = (0.38 + Math.sin(u * Math.PI) * 1.15) * (0.7 + 0.5 * stackPlume.normalizedStackTemp);
         dummy.position.set(bx + swayX, y, bz + swayZ);
-        dummy.scale.set(s, s * 0.8, s);
+        dummy.scale.set(s, s * 0.78, s);
         dummy.updateMatrix();
         stackRef.current.setMatrixAt(i, dummy.matrix);
       }
@@ -502,14 +548,17 @@ const PlumeAndShimmerEffects: React.FC<{
 
     if (coolRef.current && showScenery) {
       const [cx, cy, cz] = coolingPlume.towerTopPosition;
+      const speed = coolingPlume.riseSpeed || 0.02;
       for (let i = 0; i < puffCount; i++) {
-        const u = (phaseRef.current * (coolingPlume.riseSpeed || 0.01) + i / puffCount) % 1;
-        const y = cy + u * 2.5;
-        const swayX = Math.cos(u * Math.PI * 2 + i) * 0.32 * u;
-        const swayZ = Math.sin(u * Math.PI * 2 + i) * 0.32 * u;
-        const s = 0.85 + u * 1.55;
+        const u = ((phaseRef.current * speed) + i / puffCount) % 1;
+        const y = cy + u * 2.9;
+        const angle = u * Math.PI * 2.5 + i * 1.7;
+        const radius = 0.18 + u * 0.55;
+        const swayX = Math.cos(angle) * radius;
+        const swayZ = Math.sin(angle) * radius;
+        const s = 0.68 + Math.sin(u * Math.PI * 0.85) * 1.45;
         dummy.position.set(cx + swayX, y, cz + swayZ);
-        dummy.scale.set(s, s * 0.75, s);
+        dummy.scale.set(s, s * 0.72, s);
         dummy.updateMatrix();
         coolRef.current.setMatrixAt(i, dummy.matrix);
       }
@@ -520,7 +569,7 @@ const PlumeAndShimmerEffects: React.FC<{
       const [dx, dy, dz] = heatShimmer.diffuserTopPosition;
       const [sx, sy, sz] = heatShimmer.stackTopPosition;
       for (let i = 0; i < 6; i++) {
-        const u = (phaseRef.current * 1.4 + i / 6) % 1;
+        const u = ((phaseRef.current * 1.2) + i / 6) % 1;
         const isStack = i >= 3;
         const baseX = isStack ? sx : dx;
         const baseY = isStack ? sy : dy;
@@ -529,12 +578,12 @@ const PlumeAndShimmerEffects: React.FC<{
           ? heatShimmer.stackIntensity
           : heatShimmer.exhaustIntensity;
         dummy.position.set(
-          baseX + Math.sin(u * 10 + i) * 0.14,
-          baseY + u * 0.9,
-          baseZ,
+          baseX + Math.sin(u * 8 + i) * 0.16,
+          baseY + u * 1.05,
+          baseZ + Math.cos(u * 8 + i) * 0.12,
         );
-        const scale = intensity > 0 ? 0.4 + u * 0.6 : 0.001;
-        dummy.scale.set(scale * 1.6, scale * 0.25, scale);
+        const scale = intensity > 0 ? (0.35 + Math.sin(u * Math.PI) * 0.55) : 0.001;
+        dummy.scale.set(scale * 1.5, scale * 0.3, scale);
         dummy.updateMatrix();
         shimmerRef.current.setMatrixAt(i, dummy.matrix);
       }
@@ -544,33 +593,45 @@ const PlumeAndShimmerEffects: React.FC<{
 
   return (
     <group>
-      <instancedMesh ref={stackRef} args={[undefined, undefined, puffCount]}>
-        <sphereGeometry args={[0.25, 8, 8]} />
+      <instancedMesh
+        ref={stackRef}
+        args={[undefined, undefined, puffCount]}
+        frustumCulled={false}
+      >
+        <sphereGeometry args={[0.26, 10, 10]} />
         <meshBasicMaterial
           color={stackPlume.colorHex}
           transparent
-          opacity={stackPlume.opacity}
+          opacity={stackPlume.opacity * 0.75}
           depthWrite={false}
         />
       </instancedMesh>
       {showScenery && (
-        <instancedMesh ref={coolRef} args={[undefined, undefined, puffCount]}>
-          <sphereGeometry args={[0.42, 8, 8]} />
+        <instancedMesh
+          ref={coolRef}
+          args={[undefined, undefined, puffCount]}
+          frustumCulled={false}
+        >
+          <sphereGeometry args={[0.42, 10, 10]} />
           <meshBasicMaterial
             color="#f1f5f9"
             transparent
-            opacity={coolingPlume.opacity}
+            opacity={coolingPlume.opacity * 0.72}
             depthWrite={false}
           />
         </instancedMesh>
       )}
       {qualityMode === 'high' && (
-        <instancedMesh ref={shimmerRef} args={[undefined, undefined, 6]}>
-          <torusGeometry args={[0.35, 0.04, 6, 16]} />
+        <instancedMesh
+          ref={shimmerRef}
+          args={[undefined, undefined, 6]}
+          frustumCulled={false}
+        >
+          <sphereGeometry args={[0.28, 10, 8]} />
           <meshBasicMaterial
             color="#fdba74"
             transparent
-            opacity={0.18}
+            opacity={0.14}
             depthWrite={false}
           />
         </instancedMesh>
@@ -686,6 +747,10 @@ export const PlantScene3D: React.FC<PlantScene3DProps> = ({
     searchParams.get('pipeMode') === 'temperature' ? 'temperature' : 'service',
   );
 
+  const [cutawayOpen, setCutawayOpen] = useState<boolean>(true);
+  const [speedMultiplier, setSpeedMultiplier] = useState<number>(1);
+  const [autoTourActive, setAutoTourActive] = useState<boolean>(false);
+
   const [settingsOpen, setSettingsOpen] = useState<boolean>(false);
   const [cameraResetCount, setCameraResetCount] = useState<number>(0);
   const [zoomSignal, setZoomSignal] = useState<{ factor: number; seq: number }>({
@@ -704,9 +769,24 @@ export const PlantScene3D: React.FC<PlantScene3DProps> = ({
   useEffect(() => {
     if (resetSignal > 0) {
       setFocusedComponent(null);
+      setAutoTourActive(false);
+      setSpeedMultiplier(1);
+      setCutawayOpen(true);
       setCameraResetCount((c) => c + 1);
     }
   }, [resetSignal]);
+
+  // Auto-Tour timer cycling through the 8 plant stages
+  useEffect(() => {
+    if (!autoTourActive) return;
+    const timer = window.setInterval(() => {
+      const idx = TOUR_SEQUENCE.indexOf(selectedComponent);
+      const nextComp = TOUR_SEQUENCE[(idx + 1) % TOUR_SEQUENCE.length];
+      onSelectComponent(nextComp);
+      setFocusedComponent(nextComp);
+    }, 5200);
+    return () => window.clearInterval(timer);
+  }, [autoTourActive, selectedComponent, onSelectComponent]);
 
   const handleQualityChange = (mode: QualityMode) => {
     setQualityMode(mode);
@@ -715,6 +795,7 @@ export const PlantScene3D: React.FC<PlantScene3DProps> = ({
 
   const handleResetCamera = () => {
     setFocusedComponent(null);
+    setAutoTourActive(false);
     setCameraResetCount((c) => c + 1);
   };
 
@@ -724,9 +805,15 @@ export const PlantScene3D: React.FC<PlantScene3DProps> = ({
 
   const handleSelectAndFocus = (id: ComponentId) => {
     onSelectComponent(id);
-    if (showcaseMode) {
-      setFocusedComponent(id);
-    }
+    setFocusedComponent(id);
+  };
+
+  const handleStepStage = (dir: -1 | 1) => {
+    const idx = TOUR_SEQUENCE.indexOf(selectedComponent);
+    const nextIdx = (idx + dir + TOUR_SEQUENCE.length) % TOUR_SEQUENCE.length;
+    const nextId = TOUR_SEQUENCE[nextIdx];
+    onSelectComponent(nextId);
+    setFocusedComponent(nextId);
   };
 
   const activeCameraShot: CameraShot = focusedComponent
@@ -737,6 +824,21 @@ export const PlantScene3D: React.FC<PlantScene3DProps> = ({
     () => buildSceneAnimationParams(result, flowPlaying),
     [result, flowPlaying],
   );
+
+  const selectedMeta = useMemo(
+    () => PLANT_COMPONENTS.find((c) => c.id === selectedComponent) ?? PLANT_COMPONENTS[0],
+    [selectedComponent],
+  );
+
+  const selectedLaws = useMemo(
+    () => evaluateComponentLaws(selectedComponent, result),
+    [selectedComponent, result],
+  );
+
+  const currentStageIndex = TOUR_SEQUENCE.indexOf(selectedComponent) + 1;
+  const inletSp = result.states[selectedMeta.inletStateId];
+  const outletSp = result.states[selectedMeta.outletStateId];
+  const primaryLaw = selectedLaws[0];
 
   const showTemperatureLegend =
     viewMode === 'temperature' || pipeColorMode === 'temperature';
@@ -750,7 +852,7 @@ export const PlantScene3D: React.FC<PlantScene3DProps> = ({
         ref={wrapperRef}
         className={`canvas-wrapper ${showcaseMode ? 'canvas-wrapper-showcase' : ''}`}
       >
-        {/* Top-left Round Viewport Tool Buttons: Fullscreen & Reset Camera */}
+        {/* Top-left Round Viewport Tool Buttons: Fullscreen, Reset Camera, Cutaway Toggle */}
         <div className="viewport-tools-top-left">
           <button
             type="button"
@@ -775,6 +877,16 @@ export const PlantScene3D: React.FC<PlantScene3DProps> = ({
             aria-label={t.viewport.resetCamera}
           >
             <IconResetCamera />
+          </button>
+
+          <button
+            type="button"
+            className={`viewport-chip-btn ${cutawayOpen ? 'viewport-chip-btn-active' : ''}`}
+            onClick={() => setCutawayOpen((prev) => !prev)}
+            title={t.viewport.cutawayToggle}
+            aria-pressed={cutawayOpen}
+          >
+            {cutawayOpen ? t.viewport.cutawayOn : t.viewport.cutawayOff}
           </button>
 
           {focusedComponent !== null && (
@@ -820,8 +932,22 @@ export const PlantScene3D: React.FC<PlantScene3DProps> = ({
           </button>
         </div>
 
-        {/* Top-right Round Viewport Tool Button: Play / Pause Flow */}
+        {/* Top-right Viewport Tools: Speed Multiplier + Play / Pause Flow */}
         <div className="viewport-tools-top-right">
+          <div className="speed-pill-group" role="group" aria-label={t.viewport.speedLabel}>
+            {[0.5, 1, 2].map((mult) => (
+              <button
+                key={mult}
+                type="button"
+                className={`speed-pill-btn ${speedMultiplier === mult ? 'speed-pill-btn-active' : ''}`}
+                onClick={() => setSpeedMultiplier(mult)}
+                aria-pressed={speedMultiplier === mult}
+              >
+                {mult}×
+              </button>
+            ))}
+          </div>
+
           <button
             type="button"
             className={`round-icon-btn ${!flowPlaying ? 'round-icon-btn-active' : ''}`}
@@ -855,11 +981,35 @@ export const PlantScene3D: React.FC<PlantScene3DProps> = ({
           </button>
         </div>
 
+        {/* Floating Live Stage Telemetry HUD (when focused or in Auto-Tour / Showcase) */}
+        {focusedComponent !== null && (
+          <div className="stage-telemetry-hud" aria-live="polite">
+            <div className="stage-hud-top">
+              <span className="stage-hud-step">
+                {t.viewport.stageOf} {currentStageIndex}/8 · STATE {inletSp.id}→{outletSp.id}
+              </span>
+              <span className="stage-hud-temp">
+                {inletSp.T_K.toFixed(0)} K → {outletSp.T_K.toFixed(0)} K (
+                {(outletSp.T_C).toFixed(0)} °C)
+              </span>
+            </div>
+            <strong className="stage-hud-title">
+              {t.components[selectedComponent].name}
+            </strong>
+            <p className="stage-hud-role">{t.components[selectedComponent].role}</p>
+            {primaryLaw && (
+              <code className="stage-hud-law">{primaryLaw.liveEquation}</code>
+            )}
+          </div>
+        )}
+
         {/* Bottom-center Small "Rotate to view" Hint */}
-        <div className="viewport-rotate-hint" aria-hidden="true">
-          <IconMouse />
-          <span>{t.viewport.rotateHint}</span>
-        </div>
+        {focusedComponent === null && (
+          <div className="viewport-rotate-hint" aria-hidden="true">
+            <IconMouse />
+            <span>{t.viewport.rotateHint}</span>
+          </div>
+        )}
 
         {/* Bottom-right Round Settings Button + Popover */}
         <div className="viewport-tools-bottom-right">
@@ -901,18 +1051,18 @@ export const PlantScene3D: React.FC<PlantScene3DProps> = ({
             />
 
             {/* Soft Studio Key, Fill, and Warm Rim Lighting */}
-            <hemisphereLight args={['#e0f2fe', '#0f172a', 0.68]} />
+            <hemisphereLight args={['#e0f2fe', '#0f172a', 0.72]} />
             <directionalLight
               castShadow={qualityMode === 'high'}
               position={[10, 16, 12]}
-              intensity={1.38}
+              intensity={1.42}
               shadow-mapSize={[1024, 1024]}
               shadow-camera-left={-14}
               shadow-camera-right={14}
               shadow-camera-top={10}
               shadow-camera-bottom={-10}
             />
-            <directionalLight position={[-11, 8, -9]} intensity={0.52} color="#bae6fd" />
+            <directionalLight position={[-11, 8, -9]} intensity={0.55} color="#bae6fd" />
 
             {/* Site Ground with Concrete Pads, Roads & Soft Sky Gradient */}
             <IndustrialSiteGroundAndSky />
@@ -928,7 +1078,10 @@ export const PlantScene3D: React.FC<PlantScene3DProps> = ({
             )}
 
             {/* Single synchronous powertrain shaft (ST - Gen - Comp - Comb - GT) */}
-            <SynchronousShaft angularSpeed={animParams.shaftAngularSpeedRadPerSec} />
+            <SynchronousShaft
+              angularSpeed={animParams.shaftAngularSpeedRadPerSec}
+              speedMultiplier={speedMultiplier}
+            />
 
             {/* 8 Detailed Procedural Plant Equipment Components */}
             {PLANT_COMPONENTS.map((meta) => {
@@ -948,6 +1101,8 @@ export const PlantScene3D: React.FC<PlantScene3DProps> = ({
                   hrsgTubeBanks={animParams.hrsgTubeBanks}
                   qualityMode={qualityMode}
                   viewMode={viewMode}
+                  cutawayOpen={cutawayOpen}
+                  speedMultiplier={speedMultiplier}
                   onSelect={() => {
                     onSelectComponent(meta.id);
                     setFocusedComponent(meta.id);
@@ -956,7 +1111,7 @@ export const PlantScene3D: React.FC<PlantScene3DProps> = ({
               );
             })}
 
-            {/* Orthogonal 90° Piping with Smooth Elbows, Flanges, Valves & Flow Arrows */}
+            {/* Orthogonal 90° Piping with Smooth Elbows, Flanges, Valves & Streamline Flow */}
             {animParams.pipes.map((seg) => (
               <IndustrialPipeWithParticles
                 key={seg.id}
@@ -964,6 +1119,7 @@ export const PlantScene3D: React.FC<PlantScene3DProps> = ({
                 pipeColorMode={pipeColorMode}
                 viewMode={viewMode}
                 qualityMode={qualityMode}
+                speedMultiplier={speedMultiplier}
               />
             ))}
 
@@ -974,6 +1130,7 @@ export const PlantScene3D: React.FC<PlantScene3DProps> = ({
               heatShimmer={animParams.heatShimmer}
               showScenery={showScenery}
               qualityMode={qualityMode}
+              speedMultiplier={speedMultiplier}
             />
 
             {/* Optional Scenery (Cooling Tower, Step-Up Transformer, HV Pylon, Pipe Racks, Fence) */}
@@ -1001,8 +1158,42 @@ export const PlantScene3D: React.FC<PlantScene3DProps> = ({
         </CanvasErrorBoundary>
       </div>
 
-      {/* Footer Strip inside Viewport Card: Component Pills + Legend */}
+      {/* Footer Strip inside Viewport Card: Guided Tour Stepper + Component Pills + Legend */}
       <div className="scene-footer-bar">
+        <div className="guided-tour-controls">
+          <button
+            type="button"
+            className="tour-step-btn"
+            onClick={() => handleStepStage(-1)}
+            title={t.viewport.prevStage}
+            aria-label={t.viewport.prevStage}
+          >
+            ‹
+          </button>
+          <button
+            type="button"
+            className={`tour-auto-btn ${autoTourActive ? 'tour-auto-btn-active' : ''}`}
+            onClick={() => {
+              const next = !autoTourActive;
+              setAutoTourActive(next);
+              if (next && focusedComponent === null) {
+                setFocusedComponent(selectedComponent);
+              }
+            }}
+          >
+            {autoTourActive ? t.viewport.stopTour : t.viewport.autoTour}
+          </button>
+          <button
+            type="button"
+            className="tour-step-btn"
+            onClick={() => handleStepStage(1)}
+            title={t.viewport.nextStage}
+            aria-label={t.viewport.nextStage}
+          >
+            ›
+          </button>
+        </div>
+
         <div
           className="component-selector-bar"
           role="tablist"
@@ -1079,3 +1270,4 @@ export const PlantScene3D: React.FC<PlantScene3DProps> = ({
     </section>
   );
 };
+

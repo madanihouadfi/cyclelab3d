@@ -125,7 +125,7 @@ export const App: React.FC = () => {
           />
         );
       case 'calculations':
-        return <CalculationsPlaceholder />;
+        return <CalculationsPlaceholder result={cycleResult} vm={vm} />;
       case 'plant':
       case 'parameters':
       default:

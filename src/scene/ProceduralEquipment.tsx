@@ -23,12 +23,16 @@ export interface ProceduralEquipmentProps {
   hrsgTubeBanks: HrsgTubeBankParams;
   qualityMode: QualityMode;
   viewMode: ViewMode;
+  cutawayOpen?: boolean;
+  speedMultiplier?: number;
   onSelect: () => void;
 }
 
 /**
  * Helper to create a revolved LatheGeometry aligned along the horizontal X-axis
  * from an array of [xOffset, radius] profile points.
+ * Supports partial revolution (phiStart, phiLength) to create true open cutaway windows
+ * with zero transparency depth-sorting artifacts.
  */
 function createHorizontalLatheGeometry(
   profileXR: [number, number][],
@@ -44,7 +48,7 @@ function createHorizontalLatheGeometry(
 }
 
 /**
- * Builds a multi-stage bladed turbomachinery rotor (hub drum + radial airfoil blade rows)
+ * Builds a multi-stage bladed turbomachinery rotor (hub drum + discs + twisted airfoil blade rows)
  * merged into a single BufferGeometry so the entire multi-stage rotor spins in 1 draw call.
  */
 function createMultiStageRotorGeometry(
@@ -57,10 +61,10 @@ function createMultiStageRotorGeometry(
     const avgHub =
       stages.reduce((acc, s) => acc + s.rHub, 0) / Math.max(1, stages.length);
     const drum = new THREE.CylinderGeometry(
-      avgHub * 0.85,
-      avgHub * 0.85,
-      Math.max(0.2, maxX - minX + 0.16),
-      16,
+      avgHub * 0.88,
+      avgHub * 0.88,
+      Math.max(0.2, maxX - minX + 0.18),
+      18,
     );
     drum.rotateZ(Math.PI / 2);
     drum.translate((minX + maxX) * 0.5, 0, 0);
@@ -68,7 +72,7 @@ function createMultiStageRotorGeometry(
   }
 
   for (const st of stages) {
-    const disc = new THREE.CylinderGeometry(st.rHub, st.rHub, 0.07, 16);
+    const disc = new THREE.CylinderGeometry(st.rHub, st.rHub, 0.065, 18);
     disc.rotateZ(Math.PI / 2);
     disc.translate(st.x, 0, 0);
     parts.push(disc);
@@ -79,7 +83,7 @@ function createMultiStageRotorGeometry(
 
     for (let b = 0; b < st.blades; b++) {
       const angle = (b / st.blades) * Math.PI * 2;
-      const blade = new THREE.BoxGeometry(0.035, bladeSpan, 0.095);
+      const blade = new THREE.BoxGeometry(0.032, bladeSpan, 0.088);
       blade.rotateY(twist);
       blade.translate(0, midR, 0);
       blade.rotateX(angle);
@@ -92,8 +96,48 @@ function createMultiStageRotorGeometry(
 }
 
 /**
+ * Builds stationary inter-stage stator vane / diaphragm rings mounted in the lower/rear casing
+ * so rotating blades visibly pass between fixed stator stages.
+ */
+function createStatorVanesGeometry(
+  stages: { x: number; rInner: number; rOuter: number; vanes: number; twistRad?: number }[],
+): THREE.BufferGeometry {
+  const parts: THREE.BufferGeometry[] = [];
+  for (const st of stages) {
+    const outerRing = new THREE.CylinderGeometry(
+      st.rOuter,
+      st.rOuter,
+      0.045,
+      20,
+      1,
+      true,
+      Math.PI * 0.65,
+      Math.PI * 1.35,
+    );
+    outerRing.rotateZ(Math.PI / 2);
+    outerRing.translate(st.x, 0, 0);
+    parts.push(outerRing);
+
+    const span = Math.max(0.06, st.rOuter - st.rInner);
+    const midR = st.rInner + span * 0.5;
+    const twist = st.twistRad ?? -0.32;
+
+    for (let v = 0; v < st.vanes; v++) {
+      const angle = Math.PI * 0.65 + (v / Math.max(1, st.vanes - 1)) * (Math.PI * 1.35);
+      const vane = new THREE.BoxGeometry(0.028, span, 0.072);
+      vane.rotateY(twist);
+      vane.translate(0, midR, 0);
+      vane.rotateX(angle);
+      vane.translate(st.x, 0, 0);
+      parts.push(vane);
+    }
+  }
+  return mergeStaticParts(parts);
+}
+
+/**
  * Helper to build merged circumferential bolt heads + horizontal split-line flange bolts
- * into a single static BufferGeometry (1 draw call instead of dozens).
+ * into a single static BufferGeometry (1 draw call).
  */
 function createMergedFlangeAndBolts(
   ringXPositions: { x: number; r: number }[],
@@ -128,13 +172,17 @@ function createMergedFlangeAndBolts(
       r + 0.06,
       0.06,
       qualityMode === 'high' ? 28 : 16,
+      1,
+      false,
+      Math.PI * 0.55,
+      Math.PI * 1.45,
     );
     ring.rotateZ(Math.PI / 2);
     ring.translate(x, 0, 0);
     parts.push(ring);
 
     for (let i = 0; i < boltCount; i++) {
-      const angle = (i / boltCount) * Math.PI * 2;
+      const angle = Math.PI * 0.55 + (i / boltCount) * (Math.PI * 1.45);
       const by = Math.cos(angle) * (r + 0.03);
       const bz = Math.sin(angle) * (r + 0.03);
       const bolt = new THREE.CylinderGeometry(0.022, 0.022, 0.11, 6);
@@ -191,16 +239,46 @@ export const ProceduralEquipment: React.FC<ProceduralEquipmentProps> = ({
   hrsgTubeBanks,
   qualityMode,
   viewMode,
+  cutawayOpen = true,
+  speedMultiplier = 1,
   onSelect,
 }) => {
   const rotorRef = useRef<THREE.Group>(null);
+  const upperHoodRef = useRef<THREE.Group>(null);
+  const flameCoreRef = useRef<THREE.Group>(null);
+  const condensateRef = useRef<THREE.InstancedMesh>(null);
+  const flamePhaseRef = useRef(0);
+  const dropDummy = useMemo(() => new THREE.Object3D(), []);
+
   const textures = useMemo(() => getProceduralTextures(), []);
   const segs = qualityMode === 'high' ? 32 : 16;
   const isXray = viewMode === 'xray';
   const isTempMode = viewMode === 'temperature';
   const TEAL_ACCENT = '#2dd4bf';
 
+  // Target vertical lift for the upper casing hood when cutawayOpen or selected
+  const targetHoodLift = cutawayOpen || isSelected ? 0.52 : 0.0;
+
   const getCasingMaterialProps = (baseColor: string) => ({
+    color: isXray
+      ? isSelected
+        ? TEAL_ACCENT
+        : '#9aa3ad'
+      : isTempMode
+        ? colorHex
+        : isSelected
+          ? '#1e293b'
+          : baseColor,
+    roughnessMap: isXray ? undefined : textures.brushedMetalRoughness,
+    emissive: isSelected ? TEAL_ACCENT : isTempMode ? colorHex : '#0a0c0f',
+    emissiveIntensity: isSelected ? 0.28 : isTempMode ? 0.35 : 0.06,
+    metalness: isXray ? 0.2 : 0.82,
+    roughness: isXray ? 0.4 : 0.26,
+    wireframe: isXray,
+    side: THREE.DoubleSide,
+  });
+
+  const getUpperHoodMaterialProps = (baseColor: string) => ({
     color: isXray
       ? isSelected
         ? TEAL_ACCENT
@@ -212,38 +290,91 @@ export const ProceduralEquipment: React.FC<ProceduralEquipmentProps> = ({
           : baseColor,
     roughnessMap: isXray ? undefined : textures.brushedMetalRoughness,
     emissive: isSelected ? TEAL_ACCENT : isTempMode ? colorHex : '#0a0c0f',
-    emissiveIntensity: isSelected ? 0.45 : isTempMode ? 0.35 : 0.08,
-    metalness: isXray ? 0.2 : 0.78,
-    roughness: isXray ? 0.4 : 0.28,
+    emissiveIntensity: isSelected ? 0.32 : isTempMode ? 0.28 : 0.05,
+    metalness: 0.78,
+    roughness: 0.24,
     wireframe: isXray,
     transparent: true,
-    opacity: isXray ? 0.34 : 0.88,
+    opacity: isXray ? 0.24 : cutawayOpen || isSelected ? 0.42 : 0.88,
+    depthWrite: false,
+    side: THREE.DoubleSide,
   });
 
   useFrame((_, delta) => {
-    if (rotorRef.current && shaftAngularSpeed > 0) {
+    const effectiveSpeed = shaftAngularSpeed * speedMultiplier;
+    if (rotorRef.current && effectiveSpeed > 0) {
       rotorRef.current.rotation.x =
-        (rotorRef.current.rotation.x + delta * shaftAngularSpeed) % (Math.PI * 2);
+        (rotorRef.current.rotation.x + delta * effectiveSpeed) % (Math.PI * 2);
+    }
+
+    // Smooth exponential damping on the removable upper casing inspection hood
+    if (upperHoodRef.current) {
+      upperHoodRef.current.position.y = THREE.MathUtils.damp(
+        upperHoodRef.current.position.y,
+        targetHoodLift,
+        6.5,
+        delta,
+      );
+    }
+
+    // Dynamic pulsing combustion flame core in the Combustor
+    if (flameCoreRef.current && meta.id === 'combustor') {
+      flamePhaseRef.current = (flamePhaseRef.current + delta * (effectiveSpeed > 0 ? 14 : 2)) % (Math.PI * 2);
+      const flicker = 1 + Math.sin(flamePhaseRef.current * 2.3) * 0.08 + Math.cos(flamePhaseRef.current * 3.7) * 0.05;
+      const titScale = 0.82 + combustorGlow.normalizedTit * 0.35;
+      flameCoreRef.current.scale.set(flicker * titScale, flicker, flicker);
+    }
+
+    // Animated falling condensate droplets in the Surface Condenser shell
+    if (condensateRef.current && meta.id === 'condenser') {
+      flamePhaseRef.current = (flamePhaseRef.current + delta * (effectiveSpeed > 0 ? 1.35 * speedMultiplier : 0)) % 1;
+      for (let i = 0; i < 12; i++) {
+        const u = (flamePhaseRef.current + i / 12) % 1;
+        const dx = -0.85 + (i % 6) * 0.34;
+        const dz = (i < 6 ? 0.22 : -0.18);
+        const dy = 0.35 - u * 0.72;
+        const s = 0.75 + Math.sin(u * Math.PI) * 0.45;
+        dropDummy.position.set(dx, dy, dz);
+        dropDummy.scale.set(s, s * 1.4, s);
+        dropDummy.updateMatrix();
+        condensateRef.current.setMatrixAt(i, dropDummy.matrix);
+      }
+      condensateRef.current.instanceMatrix.needsUpdate = true;
     }
   });
 
   const geometries = useMemo(() => {
+    // Lower solid cradle angle: covers rear + bottom + lower-front (245° arc), leaving a 115° front-top cutaway window
+    const LOWER_PHI_START = Math.PI * 0.58;
+    const LOWER_PHI_LEN = Math.PI * 1.42;
+    // Upper removable inspection hood covering the top-front 115° arc
+    const UPPER_PHI_START = 0.0;
+    const UPPER_PHI_LEN = Math.PI * 0.58;
+
     switch (meta.id) {
       case 'compressor': {
-        // Converging 16-stage axial compressor barrel + HP discharge transition spool reaching x=+1.55 (bolted to Combustor)
-        const casing = createHorizontalLatheGeometry(
-          [
-            [-0.92, 0.32],
-            [-0.88, 0.84],
-            [-0.65, 0.82],
-            [-0.45, 0.74],
-            [-0.15, 0.66],
-            [0.2, 0.58],
-            [0.55, 0.52],
-            [0.88, 0.48],
-            [1.55, 0.48],
-          ],
+        const profile: [number, number][] = [
+          [-0.92, 0.32],
+          [-0.88, 0.84],
+          [-0.65, 0.82],
+          [-0.45, 0.74],
+          [-0.15, 0.66],
+          [0.2, 0.58],
+          [0.55, 0.52],
+          [0.88, 0.48],
+          [1.55, 0.48],
+        ];
+        const lowerCasing = createHorizontalLatheGeometry(
+          profile,
           segs,
+          LOWER_PHI_START,
+          LOWER_PHI_LEN,
+        );
+        const upperHood = createHorizontalLatheGeometry(
+          profile,
+          segs,
+          UPPER_PHI_START,
+          UPPER_PHI_LEN,
         );
         const flanges = createMergedFlangeAndBolts(
           [
@@ -259,12 +390,23 @@ export const ProceduralEquipment: React.FC<ProceduralEquipmentProps> = ({
           qualityMode,
         );
 
-        // Multi-stage bladed axial compressor rotor (4 stages of radial airfoil blades)
+        // 6-stage bladed axial compressor rotor with twisted titanium airfoils
         const rotor = createMultiStageRotorGeometry([
-          { x: -0.68, rHub: 0.26, rTip: 0.76, blades: 16, twistRad: 0.42 },
-          { x: -0.32, rHub: 0.28, rTip: 0.68, blades: 16, twistRad: 0.38 },
-          { x: 0.08, rHub: 0.3, rTip: 0.58, blades: 18, twistRad: 0.35 },
-          { x: 0.48, rHub: 0.32, rTip: 0.48, blades: 20, twistRad: 0.32 },
+          { x: -0.72, rHub: 0.24, rTip: 0.78, blades: 18, twistRad: 0.44 },
+          { x: -0.44, rHub: 0.26, rTip: 0.71, blades: 18, twistRad: 0.4 },
+          { x: -0.16, rHub: 0.28, rTip: 0.64, blades: 20, twistRad: 0.36 },
+          { x: 0.12, rHub: 0.3, rTip: 0.57, blades: 20, twistRad: 0.34 },
+          { x: 0.4, rHub: 0.32, rTip: 0.51, blades: 22, twistRad: 0.3 },
+          { x: 0.68, rHub: 0.33, rTip: 0.46, blades: 22, twistRad: 0.28 },
+        ]);
+
+        // 5 stationary inter-stage stator vane rings
+        const stators = createStatorVanesGeometry([
+          { x: -0.58, rInner: 0.27, rOuter: 0.75, vanes: 14, twistRad: -0.35 },
+          { x: -0.3, rInner: 0.29, rOuter: 0.68, vanes: 14, twistRad: -0.32 },
+          { x: -0.02, rInner: 0.31, rOuter: 0.61, vanes: 16, twistRad: -0.3 },
+          { x: 0.26, rInner: 0.32, rOuter: 0.54, vanes: 16, twistRad: -0.28 },
+          { x: 0.54, rInner: 0.33, rOuter: 0.49, vanes: 18, twistRad: -0.25 },
         ]);
 
         // Elevated Air Intake Filter House + Weather Louvers + Support Legs + Vertical Duct + Radial Inlet Plenum
@@ -304,56 +446,93 @@ export const ProceduralEquipment: React.FC<ProceduralEquipmentProps> = ({
         railParts.push(topRail);
         const filterRailsMerged = mergeStaticParts(railParts);
 
-        return { casing, flanges, rotor, filterHouseMerged, filterRailsMerged };
+        return {
+          lowerCasing,
+          upperHood,
+          flanges,
+          rotor,
+          stators,
+          filterHouseMerged,
+          filterRailsMerged,
+        };
       }
 
       case 'combustor': {
-        // Bulging annular/can-annular combustion section casing + transition spool reaching Gas Turbine HP inlet (x=+1.55)
-        const casing = createHorizontalLatheGeometry(
-          [
-            [-0.85, 0.48],
-            [-0.65, 0.68],
-            [-0.25, 0.76],
-            [0.25, 0.76],
-            [0.65, 0.68],
-            [0.85, 0.56],
-            [1.55, 0.56],
-          ],
+        const profile: [number, number][] = [
+          [-0.85, 0.48],
+          [-0.65, 0.68],
+          [-0.25, 0.76],
+          [0.25, 0.76],
+          [0.65, 0.68],
+          [0.85, 0.56],
+          [1.55, 0.56],
+        ];
+        const lowerCasing = createHorizontalLatheGeometry(
+          profile,
           segs,
+          LOWER_PHI_START,
+          LOWER_PHI_LEN,
         );
+        const upperHood = createHorizontalLatheGeometry(
+          profile,
+          segs,
+          UPPER_PHI_START,
+          UPPER_PHI_LEN,
+        );
+
         const canParts: THREE.BufferGeometry[] = [];
         for (let i = 0; i < 8; i++) {
           const a = (i / 8) * Math.PI * 2;
-          if (i === 1) continue;
-          const cy = Math.cos(a) * 0.68;
-          const cz = Math.sin(a) * 0.68;
-          const can = new THREE.CylinderGeometry(0.16, 0.18, 1.15, 12);
+          // Leave front-top window open so inner flame plasma is unobstructed
+          if (i === 0 || i === 1) continue;
+          const cy = Math.cos(a) * 0.62;
+          const cz = Math.sin(a) * 0.62;
+          const can = new THREE.CylinderGeometry(0.15, 0.17, 1.12, 12);
           can.rotateZ(Math.PI / 2);
           can.translate(0, cy, cz);
           canParts.push(can);
         }
-        const fuelManifold = new THREE.TorusGeometry(0.78, 0.045, 10, 24);
+        const fuelManifold = new THREE.TorusGeometry(0.78, 0.048, 10, 24);
         fuelManifold.rotateY(Math.PI / 2);
         fuelManifold.translate(-0.52, 0, 0);
         canParts.push(fuelManifold);
 
+        // Fuel injector pigtails connecting manifold to combustion cans
+        for (let i = 2; i < 8; i++) {
+          const a = (i / 8) * Math.PI * 2;
+          const py = Math.cos(a) * 0.7;
+          const pz = Math.sin(a) * 0.7;
+          const pigtail = new THREE.CylinderGeometry(0.022, 0.022, 0.32, 6);
+          pigtail.rotateZ(Math.PI / 2);
+          pigtail.translate(-0.36, py, pz);
+          canParts.push(pigtail);
+        }
+
         const cansMerged = mergeStaticParts(canParts);
-        return { casing, cansMerged };
+        return { lowerCasing, upperHood, cansMerged };
       }
 
       case 'gasTurbine': {
-        // Expanding 4-stage heavy-duty gas turbine barrel
-        const casing = createHorizontalLatheGeometry(
-          [
-            [-0.88, 0.54],
-            [-0.82, 0.56],
-            [-0.45, 0.64],
-            [-0.05, 0.74],
-            [0.35, 0.84],
-            [0.75, 0.94],
-            [0.8, 0.88],
-          ],
+        const profile: [number, number][] = [
+          [-0.88, 0.54],
+          [-0.82, 0.56],
+          [-0.45, 0.64],
+          [-0.05, 0.74],
+          [0.35, 0.84],
+          [0.75, 0.94],
+          [0.8, 0.88],
+        ];
+        const lowerCasing = createHorizontalLatheGeometry(
+          profile,
           segs,
+          LOWER_PHI_START,
+          LOWER_PHI_LEN,
+        );
+        const upperHood = createHorizontalLatheGeometry(
+          profile,
+          segs,
+          UPPER_PHI_START,
+          UPPER_PHI_LEN,
         );
         const flanges = createMergedFlangeAndBolts(
           [
@@ -368,7 +547,7 @@ export const ProceduralEquipment: React.FC<ProceduralEquipmentProps> = ({
           0.88,
           qualityMode,
         );
-        // Continuous Axial Exhaust Diffuser & HRSG Breeching Transition Cone bolted directly to HRSG Superheater face (x=+2.80)
+        // Axial Exhaust Diffuser with cutaway side window showing glowing exhaust gas cone
         const diffuser = createHorizontalLatheGeometry(
           [
             [0.75, 0.88],
@@ -377,38 +556,51 @@ export const ProceduralEquipment: React.FC<ProceduralEquipmentProps> = ({
             [2.82, 1.32],
           ],
           segs,
+          Math.PI * 0.35,
+          Math.PI * 1.65,
         );
 
-        // Multi-stage bladed Gas Turbine expansion rotor (4 stages of expanding airfoil blades)
+        // 4-stage expanding Gas Turbine superalloy rotor
         const rotor = createMultiStageRotorGeometry([
-          { x: -0.62, rHub: 0.28, rTip: 0.52, blades: 18, twistRad: -0.36 },
-          { x: -0.2, rHub: 0.26, rTip: 0.62, blades: 16, twistRad: -0.4 },
-          { x: 0.22, rHub: 0.24, rTip: 0.74, blades: 16, twistRad: -0.44 },
-          { x: 0.64, rHub: 0.22, rTip: 0.86, blades: 14, twistRad: -0.48 },
+          { x: -0.64, rHub: 0.28, rTip: 0.53, blades: 20, twistRad: -0.36 },
+          { x: -0.22, rHub: 0.26, rTip: 0.63, blades: 18, twistRad: -0.4 },
+          { x: 0.2, rHub: 0.24, rTip: 0.74, blades: 18, twistRad: -0.44 },
+          { x: 0.62, rHub: 0.22, rTip: 0.86, blades: 16, twistRad: -0.48 },
         ]);
 
-        return { casing, flanges, diffuser, rotor };
+        // 3 stages of glowing Nozzle Guide Vanes (NGVs)
+        const stators = createStatorVanesGeometry([
+          { x: -0.43, rInner: 0.27, rOuter: 0.58, vanes: 14, twistRad: 0.36 },
+          { x: -0.01, rInner: 0.25, rOuter: 0.68, vanes: 14, twistRad: 0.4 },
+          { x: 0.41, rInner: 0.23, rOuter: 0.8, vanes: 14, twistRad: 0.44 },
+        ]);
+
+        return { lowerCasing, upperHood, flanges, diffuser, rotor, stators };
       }
 
       case 'hrsg': {
-        // 3 separate tube-bank geometries in gas flow order:
+        // Dense finned serpentine tube bundles visible inside the HRSG cutaway bay:
         // 1) Superheater (-X gas inlet, local x = -1.05)
         // 2) Evaporator (middle bay, local x = -0.1)
         // 3) Economizer (+X stack side, local x = +0.85)
         const buildTubeBank = (xCenter: number) => {
           const tubes: THREE.BufferGeometry[] = [];
-          const rows = qualityMode === 'high' ? 7 : 4;
-          for (let r = 0; r < rows; r++) {
-            const ty = 0.22 + r * (2.15 / rows);
-            const t = new THREE.CylinderGeometry(0.055, 0.055, 0.76, 8);
-            t.rotateZ(Math.PI / 2);
-            t.translate(xCenter, ty, 1.06);
-            tubes.push(t);
+          const rows = qualityMode === 'high' ? 8 : 5;
+          const depthCols = qualityMode === 'high' ? 3 : 2;
+          for (let c = 0; c < depthCols; c++) {
+            const tz = -0.35 + c * 0.68;
+            for (let r = 0; r < rows; r++) {
+              const ty = 0.05 + r * (2.25 / rows);
+              const t = new THREE.CylinderGeometry(0.052, 0.052, 0.74, 8);
+              t.rotateZ(Math.PI / 2);
+              t.translate(xCenter, ty, tz);
+              tubes.push(t);
+            }
           }
-          // Vertical header manifolds on both sides of the tube bundle
+          // Vertical header manifolds on both sides of the front tube bundle
           for (const hx of [xCenter - 0.36, xCenter + 0.36]) {
-            const hdr = new THREE.CylinderGeometry(0.075, 0.075, 2.25, 8);
-            hdr.translate(hx, 1.15, 1.06);
+            const hdr = new THREE.CylinderGeometry(0.075, 0.075, 2.35, 10);
+            hdr.translate(hx, 1.12, 0.92);
             tubes.push(hdr);
           }
           return mergeStaticParts(tubes);
@@ -416,6 +608,30 @@ export const ProceduralEquipment: React.FC<ProceduralEquipmentProps> = ({
         const superheaterBank = buildTubeBank(-1.05);
         const evaporatorBank = buildTubeBank(-0.1);
         const economizerBank = buildTubeBank(0.85);
+
+        // HRSG Casing built as an open-front architectural cutaway enclosure (rear wall + roof + floor + side frames)
+        const casingParts: THREE.BufferGeometry[] = [];
+        const rearWall = new THREE.BoxGeometry(3.2, 3.1, 0.16);
+        rearWall.translate(0, 1.05, -0.98);
+        casingParts.push(rearWall);
+
+        const roofSlab = new THREE.BoxGeometry(3.2, 0.16, 2.1);
+        roofSlab.translate(0, 2.52, 0);
+        casingParts.push(roofSlab);
+
+        const bottomSlab = new THREE.BoxGeometry(3.2, 0.18, 2.1);
+        bottomSlab.translate(0, -0.42, 0);
+        casingParts.push(bottomSlab);
+
+        const leftBreechFrame = new THREE.BoxGeometry(0.16, 3.1, 2.1);
+        leftBreechFrame.translate(-1.52, 1.05, 0);
+        casingParts.push(leftBreechFrame);
+
+        const rightEndWall = new THREE.BoxGeometry(0.16, 3.1, 2.1);
+        rightEndWall.translate(1.52, 1.05, 0);
+        casingParts.push(rightEndWall);
+
+        const hrsgCasingMerged = mergeStaticParts(casingParts);
 
         // Merged structural I-beam columns + Superheater outlet nozzle + Economizer inlet header nozzle + stack
         const structParts: THREE.BufferGeometry[] = [];
@@ -489,10 +705,13 @@ export const ProceduralEquipment: React.FC<ProceduralEquipmentProps> = ({
             [0.85, 0.12],
           ],
           segs,
+          Math.PI * 0.45,
+          Math.PI * 1.55,
         );
         steamDrum.translate(0, 3.05, 0.35);
 
         return {
+          hrsgCasingMerged,
           superheaterBank,
           evaporatorBank,
           economizerBank,
@@ -503,19 +722,27 @@ export const ProceduralEquipment: React.FC<ProceduralEquipmentProps> = ({
       }
 
       case 'steamTurbine': {
-        // Contoured HP barrel (right, local +0.15..+0.88) + Double-Flow LP casing (left, local -1.05..-0.2)
-        const casing = createHorizontalLatheGeometry(
-          [
-            [-1.08, 0.35],
-            [-1.02, 0.92],
-            [-0.65, 0.78],
-            [-0.3, 0.92],
-            [-0.1, 0.48],
-            [0.15, 0.56],
-            [0.85, 0.48],
-            [0.92, 0.32],
-          ],
+        const profile: [number, number][] = [
+          [-1.08, 0.35],
+          [-1.02, 0.92],
+          [-0.65, 0.78],
+          [-0.3, 0.92],
+          [-0.1, 0.48],
+          [0.15, 0.56],
+          [0.85, 0.48],
+          [0.92, 0.32],
+        ];
+        const lowerCasing = createHorizontalLatheGeometry(
+          profile,
           segs,
+          LOWER_PHI_START,
+          LOWER_PHI_LEN,
+        );
+        const upperHood = createHorizontalLatheGeometry(
+          profile,
+          segs,
+          UPPER_PHI_START,
+          UPPER_PHI_LEN,
         );
         const flanges = createMergedFlangeAndBolts(
           [
@@ -528,66 +755,118 @@ export const ProceduralEquipment: React.FC<ProceduralEquipmentProps> = ({
           0.86,
           qualityMode,
         );
-        // Multi-stage HP + Double-Flow LP bladed steam turbine rotor
+        // 6-stage HP + Double-Flow LP bladed steam turbine rotor
         const rotor = createMultiStageRotorGeometry([
-          { x: -0.92, rHub: 0.24, rTip: 0.84, blades: 18, twistRad: -0.45 },
-          { x: -0.65, rHub: 0.26, rTip: 0.68, blades: 16, twistRad: -0.35 },
-          { x: -0.38, rHub: 0.24, rTip: 0.84, blades: 18, twistRad: 0.45 },
-          { x: 0.32, rHub: 0.24, rTip: 0.5, blades: 20, twistRad: -0.32 },
-          { x: 0.68, rHub: 0.24, rTip: 0.44, blades: 20, twistRad: -0.3 },
+          { x: -0.94, rHub: 0.22, rTip: 0.86, blades: 20, twistRad: -0.46 },
+          { x: -0.76, rHub: 0.24, rTip: 0.72, blades: 18, twistRad: -0.38 },
+          { x: -0.54, rHub: 0.24, rTip: 0.72, blades: 18, twistRad: 0.38 },
+          { x: -0.34, rHub: 0.22, rTip: 0.86, blades: 20, twistRad: 0.46 },
+          { x: 0.28, rHub: 0.24, rTip: 0.51, blades: 22, twistRad: -0.32 },
+          { x: 0.66, rHub: 0.24, rTip: 0.45, blades: 22, twistRad: -0.28 },
         ]);
-        return { casing, flanges, rotor };
+        const stators = createStatorVanesGeometry([
+          { x: -0.85, rInner: 0.24, rOuter: 0.8, vanes: 14, twistRad: 0.38 },
+          { x: -0.44, rInner: 0.24, rOuter: 0.8, vanes: 14, twistRad: -0.38 },
+          { x: 0.47, rInner: 0.25, rOuter: 0.48, vanes: 16, twistRad: 0.3 },
+        ]);
+        return { lowerCasing, upperHood, flanges, rotor, stators };
       }
 
       case 'generator': {
-        const casing = createHorizontalLatheGeometry(
-          [
-            [-1.05, 0.32],
-            [-0.92, 0.76],
-            [-0.75, 0.84],
-            [0.75, 0.84],
-            [0.92, 0.76],
-            [1.05, 0.32],
-          ],
+        const profile: [number, number][] = [
+          [-1.05, 0.32],
+          [-0.92, 0.76],
+          [-0.75, 0.84],
+          [0.75, 0.84],
+          [0.92, 0.76],
+          [1.05, 0.32],
+        ];
+        const lowerCasing = createHorizontalLatheGeometry(
+          profile,
           segs,
+          LOWER_PHI_START,
+          LOWER_PHI_LEN,
+        );
+        const upperHood = createHorizontalLatheGeometry(
+          profile,
+          segs,
+          UPPER_PHI_START,
+          UPPER_PHI_LEN,
         );
         const finParts: THREE.BufferGeometry[] = [];
         for (let i = -4; i <= 4; i++) {
-          const fin = new THREE.CylinderGeometry(0.89, 0.89, 0.04, segs);
+          const fin = new THREE.CylinderGeometry(
+            0.89,
+            0.89,
+            0.04,
+            segs,
+            1,
+            false,
+            LOWER_PHI_START,
+            LOWER_PHI_LEN,
+          );
           fin.rotateZ(Math.PI / 2);
           fin.translate(i * 0.17, 0, 0);
           finParts.push(fin);
         }
         const termBox = new THREE.BoxGeometry(0.75, 0.58, 0.42);
-        termBox.translate(0, 0.28, 0.94);
+        termBox.translate(0, -0.22, 0.94);
         finParts.push(termBox);
         const finsMerged = mergeStaticParts(finParts);
 
+        // Copper stator end-winding coils inside both ends of the generator frame
+        const coilParts: THREE.BufferGeometry[] = [];
+        for (const cx of [-0.72, 0.72]) {
+          const torus = new THREE.TorusGeometry(0.58, 0.09, 10, 24);
+          torus.rotateY(Math.PI / 2);
+          torus.translate(cx, 0, 0);
+          coilParts.push(torus);
+        }
+        const statorCoils = mergeStaticParts(coilParts);
+
         // Synchronous copper-pole generator rotor
         const rotor = createMultiStageRotorGeometry([
-          { x: -0.65, rHub: 0.32, rTip: 0.68, blades: 8, twistRad: 0 },
-          { x: 0, rHub: 0.36, rTip: 0.7, blades: 8, twistRad: 0 },
-          { x: 0.65, rHub: 0.32, rTip: 0.68, blades: 8, twistRad: 0 },
+          { x: -0.58, rHub: 0.32, rTip: 0.66, blades: 8, twistRad: 0 },
+          { x: 0, rHub: 0.36, rTip: 0.68, blades: 8, twistRad: 0 },
+          { x: 0.58, rHub: 0.32, rTip: 0.66, blades: 8, twistRad: 0 },
         ]);
 
-        return { casing, finsMerged, rotor };
+        return { lowerCasing, upperHood, finsMerged, statorCoils, rotor };
       }
 
       case 'condenser': {
-        const casing = createHorizontalLatheGeometry(
-          [
-            [-1.35, 0.15],
-            [-1.15, 0.68],
-            [-0.95, 0.74],
-            [0.95, 0.74],
-            [1.15, 0.68],
-            [1.35, 0.15],
-          ],
+        const profile: [number, number][] = [
+          [-1.35, 0.15],
+          [-1.15, 0.68],
+          [-0.95, 0.74],
+          [0.95, 0.74],
+          [1.15, 0.68],
+          [1.35, 0.15],
+        ];
+        const lowerCasing = createHorizontalLatheGeometry(
+          profile,
           segs,
+          LOWER_PHI_START,
+          LOWER_PHI_LEN,
+        );
+        const upperHood = createHorizontalLatheGeometry(
+          profile,
+          segs,
+          UPPER_PHI_START,
+          UPPER_PHI_LEN,
         );
         const ribParts: THREE.BufferGeometry[] = [];
         for (const rx of [-0.95, -0.45, 0, 0.45, 0.95]) {
-          const rib = new THREE.CylinderGeometry(0.78, 0.78, 0.05, segs);
+          const rib = new THREE.CylinderGeometry(
+            0.78,
+            0.78,
+            0.05,
+            segs,
+            1,
+            false,
+            LOWER_PHI_START,
+            LOWER_PHI_LEN,
+          );
           rib.rotateZ(Math.PI / 2);
           rib.translate(rx, 0, 0);
           ribParts.push(rib);
@@ -604,18 +883,43 @@ export const ProceduralEquipment: React.FC<ProceduralEquipmentProps> = ({
         ribParts.push(hotwellNozzle);
 
         const ribsMerged = mergeStaticParts(ribParts);
-        return { casing, ribsMerged };
+
+        // Internal brass/titanium cooling water tube bundle inside the condenser shell
+        const tubeParts: THREE.BufferGeometry[] = [];
+        for (let row = -2; row <= 1; row++) {
+          for (let col = -2; col <= 2; col++) {
+            const ty = row * 0.15 - 0.05;
+            const tz = col * 0.15;
+            if (ty * ty + tz * tz > 0.34) continue;
+            const cTube = new THREE.CylinderGeometry(0.032, 0.032, 1.85, 8);
+            cTube.rotateZ(Math.PI / 2);
+            cTube.translate(0, ty, tz);
+            tubeParts.push(cTube);
+          }
+        }
+        const tubeBundle = mergeStaticParts(tubeParts);
+
+        return { lowerCasing, upperHood, ribsMerged, tubeBundle };
       }
 
       case 'pump': {
+        const profile: [number, number][] = [
+          [-0.68, 0.2],
+          [-0.55, 0.38],
+          [-0.12, 0.38],
+          [-0.05, 0.14],
+        ];
         const pumpBody = createHorizontalLatheGeometry(
-          [
-            [-0.68, 0.2],
-            [-0.55, 0.38],
-            [-0.12, 0.38],
-            [-0.05, 0.14],
-          ],
+          profile,
           segs,
+          LOWER_PHI_START,
+          LOWER_PHI_LEN,
+        );
+        const pumpHood = createHorizontalLatheGeometry(
+          profile,
+          segs,
+          UPPER_PHI_START,
+          UPPER_PHI_LEN,
         );
         const motorBody = createHorizontalLatheGeometry(
           [
@@ -627,9 +931,10 @@ export const ProceduralEquipment: React.FC<ProceduralEquipmentProps> = ({
           segs,
         );
         const rotor = createMultiStageRotorGeometry([
-          { x: -0.35, rHub: 0.1, rTip: 0.3, blades: 10, twistRad: 0.35 },
+          { x: -0.44, rHub: 0.1, rTip: 0.32, blades: 12, twistRad: 0.38 },
+          { x: -0.24, rHub: 0.1, rTip: 0.32, blades: 12, twistRad: 0.38 },
         ]);
-        return { pumpBody, motorBody, rotor };
+        return { pumpBody, pumpHood, motorBody, rotor };
       }
     }
   }, [meta.id, segs, qualityMode]);
@@ -648,9 +953,14 @@ export const ProceduralEquipment: React.FC<ProceduralEquipmentProps> = ({
         return (
           <group>
             <ConcreteFoundation width={2.45} depth={2.15} />
-            <mesh castShadow receiveShadow geometry={geometries.casing}>
-              <meshStandardMaterial {...getCasingMaterialProps('#475569')} />
+            <mesh castShadow receiveShadow geometry={geometries.lowerCasing}>
+              <meshStandardMaterial {...getCasingMaterialProps('#334155')} />
             </mesh>
+            <group ref={upperHoodRef}>
+              <mesh geometry={geometries.upperHood} renderOrder={2}>
+                <meshStandardMaterial {...getUpperHoodMaterialProps('#475569')} />
+              </mesh>
+            </group>
             <mesh castShadow geometry={geometries.flanges}>
               <meshStandardMaterial
                 color={isSelected ? TEAL_ACCENT : '#94a3b8'}
@@ -659,29 +969,36 @@ export const ProceduralEquipment: React.FC<ProceduralEquipmentProps> = ({
                 wireframe={isXray}
               />
             </mesh>
+            {/* Stationary Inter-Stage Stator Vanes */}
+            <mesh geometry={geometries.stators}>
+              <meshStandardMaterial
+                color="#cbd5e1"
+                metalness={0.78}
+                roughness={0.3}
+                side={THREE.DoubleSide}
+              />
+            </mesh>
             {/* Elevated Air Intake Filter House & Radial Inlet Plenum */}
             <mesh castShadow receiveShadow geometry={geometries.filterHouseMerged}>
               <meshStandardMaterial
-                color="#64748b"
-                metalness={0.55}
-                roughness={0.42}
+                color="#475569"
+                metalness={0.58}
+                roughness={0.4}
                 wireframe={isXray}
-                transparent
-                opacity={isXray ? 0.3 : 0.92}
               />
             </mesh>
             <mesh geometry={geometries.filterRailsMerged}>
               <meshStandardMaterial color="#eab308" metalness={0.4} roughness={0.35} />
             </mesh>
-            {/* Spinning Multi-Stage Axial Compressor Bladed Rotor */}
+            {/* Spinning 6-Stage Axial Compressor Bladed Rotor */}
             <group ref={rotorRef}>
               <mesh geometry={geometries.rotor}>
                 <meshStandardMaterial
                   color="#38bdf8"
                   emissive="#0284c7"
-                  emissiveIntensity={0.28}
-                  metalness={0.88}
-                  roughness={0.18}
+                  emissiveIntensity={0.35}
+                  metalness={0.9}
+                  roughness={0.16}
                 />
               </mesh>
             </group>
@@ -693,42 +1010,58 @@ export const ProceduralEquipment: React.FC<ProceduralEquipmentProps> = ({
         return (
           <group>
             <ConcreteFoundation width={1.95} depth={1.85} />
-            <mesh castShadow receiveShadow geometry={geometries.casing}>
+            <mesh castShadow receiveShadow geometry={geometries.lowerCasing}>
               <meshStandardMaterial
-                color={isSelected ? TEAL_ACCENT : isTempMode ? colorHex : '#78350f'}
+                color={isSelected ? '#1e293b' : isTempMode ? colorHex : '#78350f'}
                 roughnessMap={isXray ? undefined : textures.brushedMetalRoughness}
                 emissive={isSelected ? TEAL_ACCENT : combustorGlow.emissiveColorHex}
-                emissiveIntensity={isSelected ? 0.48 : combustorGlow.emissiveIntensity * 0.45}
-                metalness={0.68}
-                roughness={0.34}
+                emissiveIntensity={isSelected ? 0.3 : combustorGlow.emissiveIntensity * 0.38}
+                metalness={0.72}
+                roughness={0.32}
                 wireframe={isXray}
-                transparent
-                opacity={isXray ? 0.35 : 0.86}
+                side={THREE.DoubleSide}
               />
             </mesh>
+            <group ref={upperHoodRef}>
+              <mesh geometry={geometries.upperHood} renderOrder={2}>
+                <meshStandardMaterial {...getUpperHoodMaterialProps('#92400e')} />
+              </mesh>
+            </group>
             <mesh castShadow geometry={geometries.cansMerged}>
               <meshStandardMaterial
                 color="#b45309"
                 emissive={combustorGlow.emissiveColorHex}
                 emissiveIntensity={combustorGlow.emissiveIntensity * 0.65}
-                metalness={0.62}
-                roughness={0.3}
+                metalness={0.68}
+                roughness={0.28}
                 wireframe={isXray}
               />
             </mesh>
-            {/* Educational Cutaway Flame Core Window */}
-            <mesh position={[0, 0.42, 0.45]} rotation={[0, 0, Math.PI / 2]}>
-              <cylinderGeometry args={[0.24, 0.28, 0.92, 16]} />
-              <meshBasicMaterial color={combustorGlow.emissiveColorHex} />
-            </mesh>
-            <Html position={[0, 1.02, 0.65]} center>
-              <span className="cutaway-badge">{cutawayLabel}</span>
-            </Html>
+            {/* Animated Multi-Layer Plasma / Flame Core inside Cutaway Window */}
+            <group ref={flameCoreRef} position={[0, 0.18, 0.18]}>
+              <mesh rotation={[0, 0, -Math.PI / 2]}>
+                <coneGeometry args={[0.32, 1.15, 18]} />
+                <meshBasicMaterial
+                  color={combustorGlow.emissiveColorHex}
+                  transparent
+                  opacity={0.85}
+                />
+              </mesh>
+              <mesh rotation={[0, 0, -Math.PI / 2]} position={[-0.1, 0, 0]}>
+                <coneGeometry args={[0.18, 0.82, 14]} />
+                <meshBasicMaterial color="#fef08a" />
+              </mesh>
+            </group>
+            {isSelected && (
+              <Html position={[0, 1.25, 0.55]} center>
+                <span className="cutaway-badge">{cutawayLabel}</span>
+              </Html>
+            )}
             <pointLight
-              position={[0, 0.35, 0.35]}
+              position={[0, 0.42, 0.42]}
               color={combustorGlow.emissiveColorHex}
               intensity={combustorGlow.pointLightIntensity}
-              distance={5.5}
+              distance={6.0}
               decay={2}
             />
           </group>
@@ -739,9 +1072,14 @@ export const ProceduralEquipment: React.FC<ProceduralEquipmentProps> = ({
         return (
           <group>
             <ConcreteFoundation width={4.2} depth={2.2} />
-            <mesh castShadow receiveShadow geometry={geometries.casing}>
-              <meshStandardMaterial {...getCasingMaterialProps('#64748b')} />
+            <mesh castShadow receiveShadow geometry={geometries.lowerCasing}>
+              <meshStandardMaterial {...getCasingMaterialProps('#475569')} />
             </mesh>
+            <group ref={upperHoodRef}>
+              <mesh geometry={geometries.upperHood} renderOrder={2}>
+                <meshStandardMaterial {...getUpperHoodMaterialProps('#64748b')} />
+              </mesh>
+            </group>
             <mesh castShadow geometry={geometries.flanges}>
               <meshStandardMaterial
                 color={isSelected ? TEAL_ACCENT : '#cbd5e1'}
@@ -750,16 +1088,26 @@ export const ProceduralEquipment: React.FC<ProceduralEquipmentProps> = ({
                 wireframe={isXray}
               />
             </mesh>
+            {/* Stationary Glowing Nozzle Guide Vane (NGV) Rings */}
+            <mesh geometry={geometries.stators}>
+              <meshStandardMaterial
+                color="#fdba74"
+                emissive="#ea580c"
+                emissiveIntensity={0.28}
+                metalness={0.75}
+                roughness={0.28}
+                side={THREE.DoubleSide}
+              />
+            </mesh>
             {/* Continuous Axial Exhaust Diffuser & Transition Hood bolted to HRSG */}
             <mesh castShadow receiveShadow geometry={geometries.diffuser}>
               <meshStandardMaterial
-                color="#475569"
+                color="#334155"
                 roughnessMap={isXray ? undefined : textures.brushedMetalRoughness}
-                metalness={0.72}
-                roughness={0.36}
+                metalness={0.76}
+                roughness={0.32}
                 wireframe={isXray}
-                transparent
-                opacity={isXray ? 0.32 : 0.82}
+                side={THREE.DoubleSide}
               />
             </mesh>
             {/* Spinning 4-Stage Bladed Gas Turbine Rotor */}
@@ -768,9 +1116,9 @@ export const ProceduralEquipment: React.FC<ProceduralEquipmentProps> = ({
                 <meshStandardMaterial
                   color="#fb923c"
                   emissive="#ea580c"
-                  emissiveIntensity={0.35}
-                  metalness={0.85}
-                  roughness={0.2}
+                  emissiveIntensity={0.45}
+                  metalness={0.88}
+                  roughness={0.18}
                 />
               </mesh>
             </group>
@@ -782,35 +1130,28 @@ export const ProceduralEquipment: React.FC<ProceduralEquipmentProps> = ({
         return (
           <group>
             <ConcreteFoundation width={3.8} depth={2.9} />
-            <RoundedBox
-              args={[3.2, 3.1, 2.1]}
-              radius={0.06}
-              smoothness={2}
-              position={[0, 1.05, 0]}
-              castShadow
-              receiveShadow
-            >
+            {/* Open-front cutaway structural boiler enclosure revealing all 3 tube banks */}
+            <mesh castShadow receiveShadow geometry={geometries.hrsgCasingMerged}>
               <meshStandardMaterial
-                color={isSelected ? TEAL_ACCENT : isTempMode ? colorHex : '#1e3a5f'}
+                color={isSelected ? '#134e4a' : isTempMode ? colorHex : '#1e293b'}
                 emissive={isSelected ? TEAL_ACCENT : isTempMode ? colorHex : '#0f172a'}
-                emissiveIntensity={isSelected ? 0.36 : isTempMode ? 0.28 : 0.08}
-                metalness={0.48}
-                roughness={0.5}
+                emissiveIntensity={isSelected ? 0.24 : isTempMode ? 0.25 : 0.06}
+                metalness={0.58}
+                roughness={0.44}
                 wireframe={isXray}
-                transparent
-                opacity={isXray ? 0.3 : 0.9}
+                side={THREE.DoubleSide}
               />
-            </RoundedBox>
+            </mesh>
 
-            {/* Exposed HRSG Tube Banks in Gas Flow Order:
+            {/* Exposed HRSG Finned Serpentine Tube Banks in Gas Flow Order:
                 1) Superheater (-X hottest) -> 2) Evaporator (middle) -> 3) Economizer (+X coolest) */}
             <mesh geometry={geometries.superheaterBank}>
               <meshStandardMaterial
                 color={hrsgTubeBanks.superheaterColorHex}
                 emissive={hrsgTubeBanks.superheaterColorHex}
                 emissiveIntensity={hrsgTubeBanks.superheaterGlow}
-                metalness={0.55}
-                roughness={0.35}
+                metalness={0.62}
+                roughness={0.28}
               />
             </mesh>
             <mesh geometry={geometries.evaporatorBank}>
@@ -818,8 +1159,8 @@ export const ProceduralEquipment: React.FC<ProceduralEquipmentProps> = ({
                 color={hrsgTubeBanks.evaporatorColorHex}
                 emissive={hrsgTubeBanks.evaporatorColorHex}
                 emissiveIntensity={hrsgTubeBanks.evaporatorGlow}
-                metalness={0.55}
-                roughness={0.35}
+                metalness={0.62}
+                roughness={0.28}
               />
             </mesh>
             <mesh geometry={geometries.economizerBank}>
@@ -827,20 +1168,30 @@ export const ProceduralEquipment: React.FC<ProceduralEquipmentProps> = ({
                 color={hrsgTubeBanks.economizerColorHex}
                 emissive={hrsgTubeBanks.economizerColorHex}
                 emissiveIntensity={hrsgTubeBanks.economizerGlow}
-                metalness={0.55}
-                roughness={0.35}
+                metalness={0.62}
+                roughness={0.28}
               />
             </mesh>
 
-            {/* Top Steam Drum above Evaporator */}
+            {/* Top Steam Drum with cutaway water-level sight glass */}
             <mesh castShadow receiveShadow geometry={geometries.steamDrum}>
               <meshStandardMaterial
                 color="#cbd5e1"
                 roughnessMap={isXray ? undefined : textures.brushedMetalRoughness}
-                metalness={0.78}
-                roughness={0.26}
+                metalness={0.82}
+                roughness={0.24}
                 wireframe={isXray}
+                side={THREE.DoubleSide}
               />
+            </mesh>
+            {/* Internal Saturated Water Level inside Steam Drum Cutaway */}
+            <mesh position={[-0.15, 2.98, 0.38]} rotation={[0, 0, Math.PI / 2]}>
+              <cylinderGeometry args={[0.34, 0.34, 1.52, 16, 1, false, Math.PI * 0.5, Math.PI]} />
+              <meshBasicMaterial color="#0284c7" />
+            </mesh>
+            <mesh position={[-0.15, 3.12, 0.38]} rotation={[0, 0, Math.PI / 2]}>
+              <cylinderGeometry args={[0.32, 0.32, 1.48, 16, 1, false, -Math.PI * 0.5, Math.PI]} />
+              <meshBasicMaterial color="#e0f2fe" transparent opacity={0.55} />
             </mesh>
 
             <mesh castShadow receiveShadow geometry={geometries.structureMerged}>
@@ -863,9 +1214,14 @@ export const ProceduralEquipment: React.FC<ProceduralEquipmentProps> = ({
         return (
           <group>
             <ConcreteFoundation width={2.45} depth={2.05} />
-            <mesh castShadow receiveShadow geometry={geometries.casing}>
-              <meshStandardMaterial {...getCasingMaterialProps('#0284c7')} />
+            <mesh castShadow receiveShadow geometry={geometries.lowerCasing}>
+              <meshStandardMaterial {...getCasingMaterialProps('#0369a1')} />
             </mesh>
+            <group ref={upperHoodRef}>
+              <mesh geometry={geometries.upperHood} renderOrder={2}>
+                <meshStandardMaterial {...getUpperHoodMaterialProps('#0284c7')} />
+              </mesh>
+            </group>
             <mesh castShadow geometry={geometries.flanges}>
               <meshStandardMaterial
                 color={isSelected ? TEAL_ACCENT : '#bae6fd'}
@@ -874,7 +1230,15 @@ export const ProceduralEquipment: React.FC<ProceduralEquipmentProps> = ({
                 wireframe={isXray}
               />
             </mesh>
-            {/* HP Steam Admission Chest (local x=+0.65, mating with Main Steam Line) & LP Exhaust Hood Nozzle (local x=-0.65) */}
+            <mesh geometry={geometries.stators}>
+              <meshStandardMaterial
+                color="#e2e8f0"
+                metalness={0.8}
+                roughness={0.25}
+                side={THREE.DoubleSide}
+              />
+            </mesh>
+            {/* HP Steam Admission Chest (local x=+0.65) & LP Exhaust Hood Nozzle (local x=-0.65) */}
             <mesh castShadow position={[0.65, 0.52, 0]}>
               <cylinderGeometry args={[0.18, 0.22, 0.25, 12]} />
               <meshStandardMaterial color="#e2e8f0" metalness={0.85} roughness={0.2} />
@@ -884,19 +1248,19 @@ export const ProceduralEquipment: React.FC<ProceduralEquipmentProps> = ({
               <meshStandardMaterial color="#e2e8f0" metalness={0.85} roughness={0.2} />
             </mesh>
             {/* Overhead HP-to-LP crossover pipe */}
-            <mesh castShadow position={[-0.1, 0.92, 0]} rotation={[0, 0, Math.PI / 2]}>
-              <cylinderGeometry args={[0.12, 0.12, 1.05, 12]} />
+            <mesh castShadow position={[-0.1, 0.92, -0.25]} rotation={[0, 0, Math.PI / 2]}>
+              <cylinderGeometry args={[0.11, 0.11, 1.05, 12]} />
               <meshStandardMaterial color="#e2e8f0" metalness={0.85} roughness={0.2} />
             </mesh>
-            {/* Spinning Multi-Stage HP + Double-Flow LP Bladed Steam Rotor */}
+            {/* Spinning 6-Stage HP + Double-Flow LP Bladed Steam Rotor */}
             <group ref={rotorRef}>
               <mesh geometry={geometries.rotor}>
                 <meshStandardMaterial
                   color={TEAL_ACCENT}
                   emissive="#0d9488"
-                  emissiveIntensity={0.28}
-                  metalness={0.88}
-                  roughness={0.18}
+                  emissiveIntensity={0.34}
+                  metalness={0.9}
+                  roughness={0.16}
                 />
               </mesh>
             </group>
@@ -908,9 +1272,14 @@ export const ProceduralEquipment: React.FC<ProceduralEquipmentProps> = ({
         return (
           <group>
             <ConcreteFoundation width={2.35} depth={2.05} />
-            <mesh castShadow receiveShadow geometry={geometries.casing}>
-              <meshStandardMaterial {...getCasingMaterialProps('#1d4ed8')} />
+            <mesh castShadow receiveShadow geometry={geometries.lowerCasing}>
+              <meshStandardMaterial {...getCasingMaterialProps('#1e3a8a')} />
             </mesh>
+            <group ref={upperHoodRef}>
+              <mesh geometry={geometries.upperHood} renderOrder={2}>
+                <meshStandardMaterial {...getUpperHoodMaterialProps('#1d4ed8')} />
+              </mesh>
+            </group>
             <mesh castShadow geometry={geometries.finsMerged}>
               <meshStandardMaterial
                 color={isSelected ? TEAL_ACCENT : '#3b82f6'}
@@ -919,14 +1288,24 @@ export const ProceduralEquipment: React.FC<ProceduralEquipmentProps> = ({
                 wireframe={isXray}
               />
             </mesh>
+            {/* Stationary Copper Stator End-Winding Coils */}
+            <mesh geometry={geometries.statorCoils}>
+              <meshStandardMaterial
+                color="#d97706"
+                emissive="#92400e"
+                emissiveIntensity={0.25}
+                metalness={0.85}
+                roughness={0.22}
+              />
+            </mesh>
             <group ref={rotorRef}>
               <mesh geometry={geometries.rotor}>
                 <meshStandardMaterial
                   color="#f59e0b"
                   emissive="#b45309"
-                  emissiveIntensity={0.22}
-                  metalness={0.84}
-                  roughness={0.22}
+                  emissiveIntensity={0.32}
+                  metalness={0.88}
+                  roughness={0.2}
                 />
               </mesh>
             </group>
@@ -938,17 +1317,42 @@ export const ProceduralEquipment: React.FC<ProceduralEquipmentProps> = ({
         return (
           <group>
             <ConcreteFoundation width={2.85} depth={1.85} yOffset={-0.42} />
-            <mesh castShadow receiveShadow geometry={geometries.casing}>
+            <mesh castShadow receiveShadow geometry={geometries.lowerCasing}>
               <meshStandardMaterial {...getCasingMaterialProps('#0f766e')} />
             </mesh>
+            <group ref={upperHoodRef}>
+              <mesh geometry={geometries.upperHood} renderOrder={2}>
+                <meshStandardMaterial {...getUpperHoodMaterialProps('#115e59')} />
+              </mesh>
+            </group>
             <mesh castShadow geometry={geometries.ribsMerged}>
               <meshStandardMaterial
-                color="#115e59"
+                color="#134e4a"
                 metalness={0.72}
                 roughness={0.3}
                 wireframe={isXray}
+                side={THREE.DoubleSide}
               />
             </mesh>
+            {/* Internal Cooling Water Tube Bundle */}
+            <mesh geometry={geometries.tubeBundle}>
+              <meshStandardMaterial
+                color="#38bdf8"
+                emissive="#0284c7"
+                emissiveIntensity={0.25}
+                metalness={0.82}
+                roughness={0.22}
+              />
+            </mesh>
+            {/* Animated Falling Condensate Water Droplets into Hotwell */}
+            <instancedMesh
+              ref={condensateRef}
+              args={[undefined, undefined, 12]}
+              frustumCulled={false}
+            >
+              <sphereGeometry args={[0.045, 8, 8]} />
+              <meshBasicMaterial color="#7dd3fc" />
+            </instancedMesh>
           </group>
         );
       }
@@ -958,8 +1362,13 @@ export const ProceduralEquipment: React.FC<ProceduralEquipmentProps> = ({
           <group>
             <ConcreteFoundation width={1.85} depth={1.25} yOffset={-0.42} />
             <mesh castShadow receiveShadow geometry={geometries.pumpBody}>
-              <meshStandardMaterial {...getCasingMaterialProps('#2563eb')} />
+              <meshStandardMaterial {...getCasingMaterialProps('#1d4ed8')} />
             </mesh>
+            <group ref={upperHoodRef}>
+              <mesh geometry={geometries.pumpHood} renderOrder={2}>
+                <meshStandardMaterial {...getUpperHoodMaterialProps('#2563eb')} />
+              </mesh>
+            </group>
             {/* Vertical Top Discharge Nozzle at local x=-0.35 (world x=-2.55, y=0.72) mating with Feedwater Pipe */}
             <mesh castShadow position={[-0.35, 0.36, 0]}>
               <cylinderGeometry args={[0.14, 0.16, 0.25, 12]} />
@@ -979,7 +1388,13 @@ export const ProceduralEquipment: React.FC<ProceduralEquipmentProps> = ({
             </mesh>
             <group ref={rotorRef}>
               <mesh geometry={geometries.rotor}>
-                <meshStandardMaterial color={TEAL_ACCENT} metalness={0.85} roughness={0.2} />
+                <meshStandardMaterial
+                  color={TEAL_ACCENT}
+                  emissive="#0d9488"
+                  emissiveIntensity={0.28}
+                  metalness={0.88}
+                  roughness={0.18}
+                />
               </mesh>
             </group>
           </group>
@@ -990,14 +1405,14 @@ export const ProceduralEquipment: React.FC<ProceduralEquipmentProps> = ({
 
   // Carefully staggered 3D callout heights/offsets so zero labels overlap in overview camera
   const tagOffsetMap: Record<ComponentMeta['id'], [number, number, number]> = {
-    steamTurbine: [-0.2, 2.15, 0],
-    generator: [0, 1.65, 0],
+    steamTurbine: [-0.2, 2.25, 0],
+    generator: [0, 1.75, 0],
     compressor: [-0.95, 3.95, 0],
-    combustor: [0, 2.25, 0],
-    gasTurbine: [0.3, 1.75, 0],
+    combustor: [0, 2.35, 0],
+    gasTurbine: [0.3, 1.85, 0],
     hrsg: [0.1, 4.35, 0],
-    condenser: [0, 1.35, 0.55],
-    pump: [0.1, 1.25, 0.45],
+    condenser: [0, 1.45, 0.55],
+    pump: [0.1, 1.32, 0.45],
   };
 
   const tagOffset = tagOffsetMap[meta.id];
@@ -1161,3 +1576,4 @@ export const OptionalPlantScenery: React.FC = () => {
     </group>
   );
 };
+
